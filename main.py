@@ -752,22 +752,34 @@ async def on_ready():
         try:
             logger.info(f"Attempting to sync commands (attempt {i+1}/{len(retry_delays)})...")
             await asyncio.sleep(delay)  # Wait before trying to sync
+            
+            # First try fetching existing commands to avoid unnecessary syncs
+            existing_commands = await bot.tree.fetch_commands()
+            if existing_commands and len(existing_commands) >= 3:  # We expect 3 commands: start, dashboard, admin
+                logger.info(f"Found {len(existing_commands)} existing commands. No need to sync.")
+                logger.info("Bot is now fully operational!")
+                return
+
+            # If we need to sync
             synced = await bot.tree.sync()
             logger.info(f"Successfully synced {len(synced)} command(s)")
             logger.info("Bot is now fully operational!")
             return  # Exit if successful
         except discord.HTTPException as e:
             if e.status == 429:  # Rate limit error
-                retry_after = e.retry_after if hasattr(e, 'retry_after') else 30
+                retry_after = e.retry_after if hasattr(e, 'retry_after') else 60  # Increased default wait time
                 logger.warning(f"Rate limited. Retrying in {retry_after} seconds...")
                 await asyncio.sleep(retry_after)
+                # Don't count rate limits against our retry attempts
                 continue
             else:
                 logger.error(f"HTTP error while syncing commands: {e}")
         except Exception as e:
             logger.error(f"Failed to sync commands: {e}")
     
-    logger.warning("Could not sync commands after multiple attempts. Bot will continue to run, but slash commands may not work correctly.")
+    # Even if we couldn't sync commands, the bot should still be functional
+    # for users who already have access to the commands
+    logger.warning("Could not sync commands after multiple attempts. Bot will continue to run, but slash commands may not be immediately available to new guilds.")
 
 @bot.event
 async def on_command_error(ctx, error):
