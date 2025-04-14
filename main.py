@@ -348,11 +348,19 @@ class RegisterModal(discord.ui.Modal):
         # Save new user
         add_user(user)
         
-        # Send dashboard
+        # Create dashboard view
+        view = create_user_dashboard_view(user_id)
+        
+        # Send dashboard with instructions
         await interaction.followup.send(
-            f"Registration successful! You received {WELCOME_BONUS} naira as welcome bonus." +
-            (f" Your referrer received {REFERRAL_BONUS} naira." if referred_by else ""),
-            view=create_user_dashboard_view(user_id),
+            f"✅ Registration successful! You received {WELCOME_BONUS} naira as welcome bonus." +
+            (f" Your referrer received {REFERRAL_BONUS} naira." if referred_by else "") +
+            "\n\n**Your Dashboard Controls**: \n" +
+            "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+            "• **Check Balance**: View your current balance and referral count\n" +
+            "• **Withdraw**: Request withdrawal when eligible (need 1000 naira minimum)\n" +
+            "• **Set Bank Information**: Update your bank details for withdrawals",
+            view=view,
             ephemeral=False
         )
 
@@ -722,7 +730,15 @@ async def start(interaction: discord.Interaction):
     
     if user:
         await interaction.response.send_message(
-            "Welcome back! Here's your dashboard:",
+            f"**Welcome back {interaction.user.name}!**\n\n" +
+            f"Current Balance: **{user.balance}** naira\n" +
+            f"Referral Count: **{user.referral_count}**\n" +
+            f"Withdrawal Threshold: **{WITHDRAWAL_THRESHOLD}** naira\n\n" +
+            "**Dashboard Controls**:\n" +
+            "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+            "• **Check Balance**: View your current balance and referral count\n" +
+            "• **Withdraw**: Request withdrawal when eligible (need 1000 naira minimum)\n" +
+            "• **Set Bank Information**: Update your bank details for withdrawals",
             view=create_user_dashboard_view(interaction.user.id),
             ephemeral=False
         )
@@ -744,7 +760,15 @@ async def dashboard(interaction: discord.Interaction):
         return
     
     await interaction.response.send_message(
-        "Here's your dashboard:",
+        f"**Your Dashboard**\n\n" +
+        f"Current Balance: **{user.balance}** naira\n" +
+        f"Referral Count: **{user.referral_count}**\n" +
+        f"Withdrawal Threshold: **{WITHDRAWAL_THRESHOLD}** naira\n\n" +
+        "**Dashboard Controls**:\n" +
+        "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+        "• **Check Balance**: View your current balance and referral count\n" +
+        "• **Withdraw**: Request withdrawal when eligible (need 1000 naira minimum)\n" +
+        "• **Set Bank Information**: Update your bank details for withdrawals",
         view=create_user_dashboard_view(interaction.user.id),
         ephemeral=False
     )
@@ -757,7 +781,12 @@ async def admin(interaction: discord.Interaction):
         return
     
     await interaction.response.send_message(
-        "Admin Dashboard",
+        "**Admin Dashboard**\n\n" +
+        "• **Start**: Show admin dashboard\n" +
+        "• **View Users**: See all registered users and their details\n" +
+        "• **Generate Coupons**: Create new coupon codes for users\n" +
+        "• **Clear Used**: Remove used coupon codes from the system\n" +
+        "• **View Balance**: Check total balance across all users",
         view=create_admin_dashboard_view(),
         ephemeral=True
     )
