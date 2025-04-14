@@ -399,26 +399,39 @@ class BankInfoModal(discord.ui.Modal):
         )
     
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        
-        user = get_user(self.user_id)
-        if not user:
-            await interaction.followup.send("User not found.", ephemeral=True)
-            return
-        
-        # Update bank information
-        user.bank_name = self.children[0].value
-        user.bank_account_number = self.children[1].value
-        user.bank_account_name = self.children[2].value
-        
-        # Save updated user
-        add_user(user)
-        
-        await interaction.followup.send(
-            "Bank information updated successfully!",
-            view=create_user_dashboard_view(self.user_id),
-            ephemeral=True
-        )
+        try:
+            await interaction.response.defer(ephemeral=True)
+            
+            user = get_user(self.user_id)
+            if not user:
+                await interaction.followup.send("User not found.", ephemeral=True)
+                return
+            
+            # Validate input fields
+            if not all([self.children[0].value, self.children[1].value, self.children[2].value]):
+                await interaction.followup.send("Please fill in all bank information fields.", ephemeral=True)
+                return
+                
+            # Update bank information
+            user.bank_name = self.children[0].value.strip()
+            user.bank_account_number = self.children[1].value.strip()
+            user.bank_account_name = self.children[2].value.strip()
+            
+            # Save updated user
+            add_user(user)
+            logger.info(f"Bank information updated for user {user.id}")
+            
+            await interaction.followup.send(
+                "Bank information updated successfully!",
+                view=create_user_dashboard_view(self.user_id),
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error updating bank information: {e}")
+            await interaction.followup.send(
+                "An error occurred while saving your bank information. Please try again.",
+                ephemeral=True
+            )
 
 class GenerateCouponsModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs):
