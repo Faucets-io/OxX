@@ -912,8 +912,14 @@ if __name__ == "__main__":
     if not ADMIN_ID:
         logger.warning("No admin ID found in .env file. Admin features will not work correctly.")
     
-    # Keep the bot alive using a separate web server thread
-    keep_alive()
-    
-    # Run the bot
-    bot.run(TOKEN)
+    try:
+        # Start the keep-alive server in a separate thread
+        keep_alive()
+        logger.info("Keep-alive server started successfully")
+        
+        # Run the Discord bot (this blocks until the bot stops)
+        logger.info("Starting Discord bot...")
+        bot.run(TOKEN)
+    except Exception as e:
+        logger.error(f"Failed to start services: {e}")
+        raise
