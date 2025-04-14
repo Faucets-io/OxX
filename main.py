@@ -713,6 +713,7 @@ async def on_ready():
         admin_generate_button = discord.ui.Button(style=discord.ButtonStyle.success, label="Generate Coupons", custom_id="admin_generate")
         admin_clear_used_button = discord.ui.Button(style=discord.ButtonStyle.danger, label="Clear Used Coupons", custom_id="admin_clear_used") 
         admin_view_balance_button = discord.ui.Button(style=discord.ButtonStyle.secondary, label="View Total Balance", custom_id="admin_view_balance")
+        admin_invite_link_button = discord.ui.Button(style=discord.ButtonStyle.url, label="Get Invite Link", custom_id="admin_invite_link")
         
         # Add callbacks to persistent views
         copy_id_button.callback = copy_id_callback
@@ -737,6 +738,26 @@ async def on_ready():
         admin_view.add_item(admin_generate_button)
         admin_view.add_item(admin_clear_used_button)
         admin_view.add_item(admin_view_balance_button)
+        
+        # Generate bot invite link with proper permissions
+        permissions = discord.Permissions(
+            send_messages=True,
+            embed_links=True,
+            attach_files=True,
+            read_messages=True,
+            read_message_history=True,
+            add_reactions=True,
+            use_slash_commands=True
+        )
+        invite_link = discord.utils.oauth_url(bot.user.id, permissions=permissions, scopes=("bot", "applications.commands"))
+        
+        # Update the invite link button with the actual URL
+        admin_invite_link_button = discord.ui.Button(
+            style=discord.ButtonStyle.link, 
+            label="Get Invite Link", 
+            url=invite_link
+        )
+        admin_view.add_item(admin_invite_link_button)
         
         # Register the views with the bot
         bot.add_view(user_view)
@@ -848,13 +869,27 @@ async def admin(interaction: discord.Interaction):
         await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
         return
     
+    # Generate bot invite link with proper permissions
+    permissions = discord.Permissions(
+        send_messages=True,
+        embed_links=True,
+        attach_files=True,
+        read_messages=True,
+        read_message_history=True,
+        add_reactions=True,
+        use_slash_commands=True
+    )
+    invite_link = discord.utils.oauth_url(bot.user.id, permissions=permissions, scopes=("bot", "applications.commands"))
+    
     await interaction.response.send_message(
         "**Admin Dashboard**\n\n" +
         "• **Start**: Show admin dashboard\n" +
         "• **View Users**: See all registered users and their details\n" +
         "• **Generate Coupons**: Create new coupon codes for users\n" +
         "• **Clear Used**: Remove used coupon codes from the system\n" +
-        "• **View Balance**: Check total balance across all users",
+        "• **View Balance**: Check total balance across all users\n\n" +
+        f"**Bot Invite Link**:\n{invite_link}\n" +
+        "You can share this link to invite the bot to other servers.",
         view=create_admin_dashboard_view(),
         ephemeral=True
     )
