@@ -747,7 +747,7 @@ async def on_ready():
             read_messages=True,
             read_message_history=True,
             add_reactions=True,
-            use_slash_commands=True
+            use_application_commands=True  # Correct permission for slash commands
         )
         invite_link = discord.utils.oauth_url(bot.user.id, permissions=permissions, scopes=("bot", "applications.commands"))
         
@@ -877,7 +877,7 @@ async def admin(interaction: discord.Interaction):
         read_messages=True,
         read_message_history=True,
         add_reactions=True,
-        use_slash_commands=True
+        use_application_commands=True  # Correct permission for slash commands
     )
     invite_link = discord.utils.oauth_url(bot.user.id, permissions=permissions, scopes=("bot", "applications.commands"))
     
