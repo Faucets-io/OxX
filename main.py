@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
+# Discord imports
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -38,14 +39,15 @@ for file_path in [USERS_FILE, COUPONS_FILE]:
         with open(file_path, 'w') as f:
             json.dump({}, f)
 
-# Bot setup
+# Bot setup with minimal required intents for slash commands
 intents = discord.Intents.default()
-# Remove privileged intents that require approval in Discord Developer Portal
-# If you want to use these, enable them at https://discord.com/developers/applications/
-# intents.message_content = True
-# intents.members = True
+# We explicitly disable privileged intents to ensure the bot works without them
+intents.message_content = False
+intents.members = False
+intents.presences = False
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+# Create the bot with only slash commands in mind
+bot = commands.Bot(command_prefix='!', intents=intents, description="KashFlow Referral Bot")
 
 # User data structure
 class User:
@@ -687,18 +689,72 @@ async def admin_view_balance_callback(interaction: discord.Interaction):
         ephemeral=True
     )
 
-# Bot events
+# Add button persistence - this is crucial for working without privileged intents
 @bot.event
 async def on_ready():
     logger.info(f"Bot is ready! Logged in as {bot.user} (ID: {bot.user.id})")
+    logger.info(f"Bot is in {len(bot.guilds)} guild(s)")
+    
+    # Make sure persistent views are synced
+    try:
+        # Create the persistent views
+        user_view = discord.ui.View(timeout=None)
+        admin_view = discord.ui.View(timeout=None)
+
+        # Register the buttons for user dashboard
+        copy_id_button = discord.ui.Button(style=discord.ButtonStyle.primary, label="Copy ID to Refer", custom_id="copy_id")
+        check_balance_button = discord.ui.Button(style=discord.ButtonStyle.secondary, label="Check Balance", custom_id="check_balance")
+        withdraw_button = discord.ui.Button(style=discord.ButtonStyle.success, label="Withdraw", custom_id="withdraw")
+        set_bank_button = discord.ui.Button(style=discord.ButtonStyle.secondary, label="Set Bank Information", custom_id="set_bank")
+        
+        # Register buttons for admin dashboard
+        admin_start_button = discord.ui.Button(style=discord.ButtonStyle.primary, label="Start", custom_id="admin_start")
+        admin_view_users_button = discord.ui.Button(style=discord.ButtonStyle.secondary, label="View Users", custom_id="admin_view_users")
+        admin_generate_button = discord.ui.Button(style=discord.ButtonStyle.success, label="Generate Coupons", custom_id="admin_generate")
+        admin_clear_used_button = discord.ui.Button(style=discord.ButtonStyle.danger, label="Clear Used Coupons", custom_id="admin_clear_used") 
+        admin_view_balance_button = discord.ui.Button(style=discord.ButtonStyle.secondary, label="View Total Balance", custom_id="admin_view_balance")
+        
+        # Add callbacks to persistent views
+        copy_id_button.callback = copy_id_callback
+        check_balance_button.callback = check_balance_callback
+        withdraw_button.callback = withdraw_callback
+        set_bank_button.callback = set_bank_callback
+        
+        admin_start_button.callback = admin_start_callback
+        admin_view_users_button.callback = admin_view_users_callback
+        admin_generate_button.callback = admin_generate_callback
+        admin_clear_used_button.callback = admin_clear_used_callback
+        admin_view_balance_button.callback = admin_view_balance_callback
+        
+        # Add the buttons to views
+        user_view.add_item(copy_id_button)
+        user_view.add_item(check_balance_button)
+        user_view.add_item(withdraw_button)
+        user_view.add_item(set_bank_button)
+        
+        admin_view.add_item(admin_start_button)
+        admin_view.add_item(admin_view_users_button)
+        admin_view.add_item(admin_generate_button)
+        admin_view.add_item(admin_clear_used_button)
+        admin_view.add_item(admin_view_balance_button)
+        
+        # Register the views with the bot
+        bot.add_view(user_view)
+        bot.add_view(admin_view)
+        
+        logger.info("Persistent views registered successfully")
+    except Exception as e:
+        logger.error(f"Error registering persistent views: {e}")
+        
     # Retry command sync a few times with increasing delays
-    retry_delays = [1, 5, 10]
+    retry_delays = [1, 5, 15, 30]  # More attempts with longer delays
     for i, delay in enumerate(retry_delays):
         try:
             logger.info(f"Attempting to sync commands (attempt {i+1}/{len(retry_delays)})...")
             await asyncio.sleep(delay)  # Wait before trying to sync
             synced = await bot.tree.sync()
             logger.info(f"Successfully synced {len(synced)} command(s)")
+            logger.info("Bot is now fully operational!")
             return  # Exit if successful
         except discord.HTTPException as e:
             if e.status == 429:  # Rate limit error
@@ -794,6 +850,12 @@ async def admin(interaction: discord.Interaction):
 # Import here to avoid circular imports
 import io
 
+# Import from app.py for gunicorn
+from app import app
+
+# Import keep_alive for running in thread
+from keep_alive import keep_alive
+
 # Run the bot
 if __name__ == "__main__":
     if not TOKEN:
@@ -803,4 +865,8 @@ if __name__ == "__main__":
     if not ADMIN_ID:
         logger.warning("No admin ID found in .env file. Admin features will not work correctly.")
     
+    # Keep the bot alive using a separate web server thread
+    keep_alive()
+    
+    # Run the bot
     bot.run(TOKEN)
