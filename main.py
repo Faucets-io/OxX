@@ -683,11 +683,27 @@ async def admin_view_balance_callback(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     logger.info(f"Bot is ready! Logged in as {bot.user} (ID: {bot.user.id})")
-    try:
-        synced = await bot.tree.sync()
-        logger.info(f"Synced {len(synced)} command(s)")
-    except Exception as e:
-        logger.error(f"Failed to sync commands: {e}")
+    # Retry command sync a few times with increasing delays
+    retry_delays = [1, 5, 10]
+    for i, delay in enumerate(retry_delays):
+        try:
+            logger.info(f"Attempting to sync commands (attempt {i+1}/{len(retry_delays)})...")
+            await asyncio.sleep(delay)  # Wait before trying to sync
+            synced = await bot.tree.sync()
+            logger.info(f"Successfully synced {len(synced)} command(s)")
+            return  # Exit if successful
+        except discord.HTTPException as e:
+            if e.status == 429:  # Rate limit error
+                retry_after = e.retry_after if hasattr(e, 'retry_after') else 30
+                logger.warning(f"Rate limited. Retrying in {retry_after} seconds...")
+                await asyncio.sleep(retry_after)
+                continue
+            else:
+                logger.error(f"HTTP error while syncing commands: {e}")
+        except Exception as e:
+            logger.error(f"Failed to sync commands: {e}")
+    
+    logger.warning("Could not sync commands after multiple attempts. Bot will continue to run, but slash commands may not work correctly.")
 
 @bot.event
 async def on_command_error(ctx, error):
