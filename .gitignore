@@ -1,0 +1,27 @@
+# Environment variables
+.env
+
+# Cached files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# VS Code settings
+.vscode/
+
+# Other system files
+.DS_Store
+
+# User data and cache
+users.json
+coupons.json
+
+# Replit specific
+.replit
+.breakpoints
+replit.nix
