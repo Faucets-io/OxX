@@ -40,8 +40,10 @@ for file_path in [USERS_FILE, COUPONS_FILE]:
 
 # Bot setup
 intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
+# Remove privileged intents that require approval in Discord Developer Portal
+# If you want to use these, enable them at https://discord.com/developers/applications/
+# intents.message_content = True
+# intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
