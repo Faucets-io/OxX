@@ -20,7 +20,14 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-ADMIN_ID = int(os.getenv('ADMIN_ID', 0))
+
+# Admin configuration
+ADMIN_IDS_STR = os.getenv('ADMIN_IDS', '')
+ADMIN_IDS = [int(admin_id.strip()) for admin_id in ADMIN_IDS_STR.split(',') if admin_id.strip().isdigit()]
+PRIMARY_ADMIN_ID = int(os.getenv('PRIMARY_ADMIN_ID', 0))
+
+# For backward compatibility
+ADMIN_ID = PRIMARY_ADMIN_ID
 
 # Constants
 WELCOME_BONUS = 200  # Welcome bonus in Naira
@@ -609,8 +616,13 @@ async def set_bank_callback(interaction: discord.Interaction):
     bank_modal = BankInfoModal(user_id=user_id)
     await interaction.response.send_modal(bank_modal)
 
+# Helper function to check if a user is an admin
+def is_admin(user_id: int) -> bool:
+    """Check if a user is an admin."""
+    return user_id in ADMIN_IDS or user_id == PRIMARY_ADMIN_ID
+
 async def admin_start_callback(interaction: discord.Interaction):
-    if interaction.user.id != ADMIN_ID:
+    if not is_admin(interaction.user.id):
         await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
         return
     
@@ -621,7 +633,7 @@ async def admin_start_callback(interaction: discord.Interaction):
     )
 
 async def admin_view_users_callback(interaction: discord.Interaction):
-    if interaction.user.id != ADMIN_ID:
+    if not is_admin(interaction.user.id):
         await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
         return
     
@@ -669,7 +681,7 @@ async def admin_view_users_callback(interaction: discord.Interaction):
         )
 
 async def admin_generate_callback(interaction: discord.Interaction):
-    if interaction.user.id != ADMIN_ID:
+    if not is_admin(interaction.user.id):
         await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
         return
     
@@ -678,7 +690,7 @@ async def admin_generate_callback(interaction: discord.Interaction):
     await interaction.response.send_modal(generate_modal)
 
 async def admin_clear_used_callback(interaction: discord.Interaction):
-    if interaction.user.id != ADMIN_ID:
+    if not is_admin(interaction.user.id):
         await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
         return
     
