@@ -40,6 +40,7 @@ ADMIN_ID = PRIMARY_ADMIN_ID
 WELCOME_BONUS = 200  # Welcome bonus in Naira
 REFERRAL_BONUS = 200  # Referral bonus in Naira
 WITHDRAWAL_THRESHOLD = 1000  # Minimum balance required for withdrawal
+MINIMUM_REFERRALS = 4  # Minimum number of referrals required for withdrawal
 COUPON_PRICE = 500  # Price of coupon in Naira
 COUPON_LENGTH = 12  # Length of coupon code
 
@@ -374,7 +375,7 @@ class RegisterModal(discord.ui.Modal):
             "\n\n**Your Dashboard Controls**: \n" +
             "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
             "• **Check Balance**: View your current balance and referral count\n" +
-            "• **Withdraw**: Request withdrawal when eligible (need 1000 naira minimum)\n" +
+            f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
             "• **Set Bank Information**: Update your bank details for withdrawals",
             view=view,
             ephemeral=False
@@ -547,7 +548,7 @@ async def check_balance_callback(interaction: discord.Interaction):
     
     await interaction.response.send_message(
         f"Your current balance is: {user.balance} naira\n" +
-        f"Referral count: {user.referral_count}\n" +
+        f"Referral count: {user.referral_count} (need {MINIMUM_REFERRALS} to withdraw)\n" +
         f"Withdrawal threshold: {WITHDRAWAL_THRESHOLD} naira",
         ephemeral=True
     )
@@ -565,7 +566,16 @@ async def withdraw_callback(interaction: discord.Interaction):
         await interaction.response.send_message("User not found.", ephemeral=True)
         return
     
-    # Check if user is eligible for withdrawal
+    # Check if user has minimum required referrals
+    if user.referral_count < MINIMUM_REFERRALS:
+        await interaction.response.send_message(
+            f"You need at least {MINIMUM_REFERRALS} referrals to withdraw. " +
+            f"Your current referral count is {user.referral_count}.",
+            ephemeral=True
+        )
+        return
+    
+    # Check if user is eligible for withdrawal based on balance
     if user.balance < WITHDRAWAL_THRESHOLD:
         await interaction.response.send_message(
             f"You need at least {WITHDRAWAL_THRESHOLD} naira to withdraw. " +
@@ -582,24 +592,25 @@ async def withdraw_callback(interaction: discord.Interaction):
         )
         return
     
-    # Send withdrawal notification to admin
-    admin = await bot.fetch_user(ADMIN_ID)
+    # Send withdrawal notification to admin (to PRIMARY_ADMIN_ID)
+    admin = await bot.fetch_user(PRIMARY_ADMIN_ID)
     if admin:
         await admin.send(
-            f"**WITHDRAWAL REQUEST**\n" +
+            f"**PENDING WITHDRAWAL REQUEST**\n" +
             f"User: {user.username} (ID: {user.id})\n" +
             f"Amount: {user.balance} naira\n" +
+            f"Referral Count: {user.referral_count}\n" +
             f"Bank Name: {user.bank_name}\n" +
             f"Account Number: {user.bank_account_number}\n" +
             f"Account Name: {user.bank_account_name}\n" +
             f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
     
-    # Delete user
+    # Delete user immediately after withdrawal request
     delete_user(user_id)
     
     await interaction.response.send_message(
-        f"Your withdrawal request for {user.balance} naira has been submitted. " +
+        f"Your withdrawal request for {user.balance} naira has been submitted as PENDING. " +
         "Your bank details have been sent to the admin. " +
         "You will receive your payment shortly. " +
         "Your account has been cleared. You can register again with a new coupon code when you're ready.",
@@ -855,11 +866,11 @@ async def start(interaction: discord.Interaction):
             f"**Welcome back {interaction.user.name}!**\n\n" +
             f"Current Balance: **{user.balance}** naira\n" +
             f"Referral Count: **{user.referral_count}**\n" +
-            f"Withdrawal Threshold: **{WITHDRAWAL_THRESHOLD}** naira\n\n" +
+            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
             "**Dashboard Controls**:\n" +
             "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
             "• **Check Balance**: View your current balance and referral count\n" +
-            "• **Withdraw**: Request withdrawal when eligible (need 1000 naira minimum)\n" +
+            f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
             "• **Set Bank Information**: Update your bank details for withdrawals",
             view=create_user_dashboard_view(interaction.user.id),
             ephemeral=False
@@ -885,11 +896,11 @@ async def dashboard(interaction: discord.Interaction):
         f"**Your Dashboard**\n\n" +
         f"Current Balance: **{user.balance}** naira\n" +
         f"Referral Count: **{user.referral_count}**\n" +
-        f"Withdrawal Threshold: **{WITHDRAWAL_THRESHOLD}** naira\n\n" +
+        f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
         "**Dashboard Controls**:\n" +
         "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
         "• **Check Balance**: View your current balance and referral count\n" +
-        "• **Withdraw**: Request withdrawal when eligible (need 1000 naira minimum)\n" +
+        f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
         "• **Set Bank Information**: Update your bank details for withdrawals",
         view=create_user_dashboard_view(interaction.user.id),
         ephemeral=False
