@@ -24,7 +24,14 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 # Admin configuration
 ADMIN_IDS_STR = os.getenv('ADMIN_IDS', '')
 ADMIN_IDS = [int(admin_id.strip()) for admin_id in ADMIN_IDS_STR.split(',') if admin_id.strip().isdigit()]
-PRIMARY_ADMIN_ID = int(os.getenv('PRIMARY_ADMIN_ID', 0))
+
+# Get primary admin ID, handling the placeholder text case
+primary_admin_str = os.getenv('PRIMARY_ADMIN_ID', '0')
+try:
+    PRIMARY_ADMIN_ID = int(primary_admin_str)
+except ValueError:
+    logger.warning(f"Invalid PRIMARY_ADMIN_ID in .env file: {primary_admin_str}")
+    PRIMARY_ADMIN_ID = 0
 
 # For backward compatibility
 ADMIN_ID = PRIMARY_ADMIN_ID
@@ -681,8 +688,9 @@ async def admin_view_users_callback(interaction: discord.Interaction):
         )
 
 async def admin_generate_callback(interaction: discord.Interaction):
-    if not is_admin(interaction.user.id):
-        await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+    # Only the primary admin can generate coupon codes
+    if interaction.user.id != PRIMARY_ADMIN_ID:
+        await interaction.response.send_message("Only the primary admin can generate coupon codes.", ephemeral=True)
         return
     
     # Show generate coupons modal
@@ -702,7 +710,7 @@ async def admin_clear_used_callback(interaction: discord.Interaction):
     )
 
 async def admin_view_balance_callback(interaction: discord.Interaction):
-    if interaction.user.id != ADMIN_ID:
+    if not is_admin(interaction.user.id):
         await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
         return
     
@@ -890,9 +898,12 @@ async def dashboard(interaction: discord.Interaction):
 @bot.tree.command(name="admin", description="Access admin dashboard")
 async def admin(interaction: discord.Interaction):
     """Admin dashboard for managing users and coupons."""
-    if interaction.user.id != ADMIN_ID:
+    if not is_admin(interaction.user.id):
         await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
         return
+        
+    # Get if this is the primary admin
+    is_primary = interaction.user.id == PRIMARY_ADMIN_ID
     
     # Generate bot invite link with proper permissions
     permissions = discord.Permissions(
@@ -906,13 +917,18 @@ async def admin(interaction: discord.Interaction):
     )
     invite_link = discord.utils.oauth_url(bot.user.id, permissions=permissions, scopes=("bot", "applications.commands"))
     
+    # Customize message based on primary/secondary admin status
+    admin_type = "Primary Admin (Full Access)" if is_primary else "Secondary Admin (Limited Access)"
+    coupon_note = "" if is_primary else "\n**Note:** Only the primary admin can generate coupon codes."
+    
     await interaction.response.send_message(
-        "**Admin Dashboard**\n\n" +
+        f"**Admin Dashboard - {admin_type}**\n\n" +
         "• **Start**: Show admin dashboard\n" +
         "• **View Users**: See all registered users and their details\n" +
         "• **Generate Coupons**: Create new coupon codes for users\n" +
         "• **Clear Used**: Remove used coupon codes from the system\n" +
-        "• **View Balance**: Check total balance across all users\n\n" +
+        "• **View Balance**: Check total balance across all users\n" +
+        f"{coupon_note}\n\n" +
         f"**Bot Invite Link**:\n{invite_link}\n" +
         "You can share this link to invite the bot to other servers.",
         view=create_admin_dashboard_view(),
@@ -934,8 +950,13 @@ if __name__ == "__main__":
         logger.error("No Discord token found in .env file")
         exit(1)
     
-    if not ADMIN_ID:
-        logger.warning("No admin ID found in .env file. Admin features will not work correctly.")
+    if not PRIMARY_ADMIN_ID:
+        logger.warning("No primary admin ID found in .env file. Admin features will not work correctly.")
+    else:
+        logger.info(f"Primary admin ID configured: {PRIMARY_ADMIN_ID}")
+        
+    if ADMIN_IDS:
+        logger.info(f"Additional admin IDs configured: {len(ADMIN_IDS)}")
     
     try:
         # Start the keep-alive server in a separate thread
