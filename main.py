@@ -803,7 +803,7 @@ def create_demo_dashboard_view() -> discord.ui.View:
                 f"**DEMO MODE**: Withdrawal requirements not met\n\n"
                 f"To withdraw, you need:\n"
                 f"• Minimum {MINIMUM_REFERRALS} referrals (you have {DEMO_REFERRALS} in this demo)\n"
-                f"• Minimum {WITHDRAWAL_THRESHOLD} naira balance (you have {DEMO_BALANCE} in this demo)\n\n"
+                f"• Minimum ₦{WITHDRAWAL_THRESHOLD} balance (you have ₦{DEMO_BALANCE} in this demo)\n\n"
                 f"In the real app, you would need to meet these requirements before withdrawing."
             )
             frames = generate_error_animation(requirements_message)
@@ -928,7 +928,7 @@ async def transaction_confirm_callback(interaction: discord.Interaction):
         # Respond to admin
         await interaction.response.send_message(
             f"✅ Transaction **{transaction_id}** confirmed!\n\n" +
-            f"Amount: {transaction['amount']} naira\n" +
+            f"Amount: ₦{transaction['amount']}\n" +
             f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
             f"Bank: {transaction['bank_name']}\n" +
             f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
@@ -942,7 +942,7 @@ async def transaction_confirm_callback(interaction: discord.Interaction):
             if user_obj:
                 # Prepare the message content
                 message_content = (
-                    f"Amount: {transaction['amount']} naira\n" +
+                    f"Amount: ₦{transaction['amount']}\n" +
                     f"Transaction ID: {transaction_id}\n" +
                     f"Bank: {transaction['bank_name']}\n" +
                     f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
@@ -1006,7 +1006,7 @@ async def transaction_decline_callback(interaction: discord.Interaction):
         # Respond to admin
         await interaction.response.send_message(
             f"❌ Transaction **{transaction_id}** declined.\n\n" +
-            f"Amount: {transaction['amount']} naira\n" +
+            f"Amount: ₦{transaction['amount']}\n" +
             f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
             f"Decline Time: {decline_time}",
             ephemeral=True
@@ -1018,7 +1018,7 @@ async def transaction_decline_callback(interaction: discord.Interaction):
             if user_obj:
                 # Prepare the message content
                 message_content = (
-                    f"Your withdrawal of {transaction['amount']} naira has been declined.\n\n" +
+                    f"Your withdrawal of ₦{transaction['amount']} has been declined.\n\n" +
                     f"Transaction ID: {transaction_id}\n" +
                     f"Decline Time: {decline_time}\n\n" +
                     f"Please contact an admin for more information."
@@ -1509,9 +1509,9 @@ class TutorialView(discord.ui.View):
         
         await interaction.response.send_message(
             f"**Tutorial skipped. Welcome to your dashboard, {interaction.user.name}!**\n\n" +
-            f"Current Balance: **{user.balance}** naira\n" +
+            f"Current Balance: **₦{user.balance}**\n" +
             f"Referral Count: **{user.referral_count}**\n" +
-            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
             "**Dashboard Controls**:\n" +
             "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
             "• **Check Balance**: View your current balance and referral count\n" +
@@ -1547,9 +1547,9 @@ class TutorialView(discord.ui.View):
         user = get_user(self.user_id)
         await interaction.followup.send(
             f"**Welcome to your dashboard, {interaction.user.name}!**\n\n" +
-            f"Current Balance: **{user.balance}** naira\n" +
+            f"Current Balance: **₦{user.balance}**\n" +
             f"Referral Count: **{user.referral_count}**\n" +
-            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
             "**Dashboard Controls**:\n" +
             "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
             "• **Check Balance**: View your current balance and referral count\n" +
