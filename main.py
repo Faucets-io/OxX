@@ -2045,6 +2045,90 @@ class RatingModal(discord.ui.Modal):
             logger.error(f"Error submitting rating: {e}")
             await interaction.followup.send(f"An error occurred: {str(e)}", ephemeral=True)
 
+class ChatMessageModal(discord.ui.Modal):
+    def __init__(self, user_id: int, username: str, *args, **kwargs):
+        super().__init__(title="Send Chat Message", *args, **kwargs)
+        self.user_id = user_id
+        self.username = username
+        
+        # Message content field
+        self.add_item(
+            discord.ui.TextInput(
+                label="Message",
+                placeholder="Type your message here...",
+                custom_id="message_content",
+                required=True,
+                max_length=500,
+                style=discord.TextStyle.paragraph
+            )
+        )
+        
+        # Attachment URL field
+        self.add_item(
+            discord.ui.TextInput(
+                label="Attachment URL (optional)",
+                placeholder="Paste a link to an image or voice note",
+                custom_id="attachment_url",
+                required=False,
+                max_length=500
+            )
+        )
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        # Verify it's the right user
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("You can only send messages as yourself.", ephemeral=True)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        # Get the message content and attachment URL
+        message_content = self.children[0].value
+        attachment_url = self.children[1].value if self.children[1].value else None
+        
+        try:
+            # Determine message type based on content and attachment
+            message_type = "text"
+            
+            if attachment_url:
+                if any(ext in attachment_url.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif']):
+                    message_type = "image"
+                elif any(ext in attachment_url.lower() for ext in ['.mp3', '.wav', '.ogg']):
+                    message_type = "voice"
+            
+            # Check if message has referral information
+            if "My referral ID:" in message_content or "ID to refer:" in message_content:
+                message_type = "referral"
+                
+            # Add the message to the chat
+            new_message = add_chat_message(
+                user_id=self.user_id,
+                username=self.username,
+                content=message_content,
+                message_type=message_type,
+                attachment_url=attachment_url
+            )
+            
+            if new_message:
+                # Show a success animation
+                frames = generate_success_animation("Message sent successfully!")
+                await send_animated_message(
+                    interaction,
+                    frames,
+                    duration=1.5,
+                    final_frame="# Message Sent! ✅\n\nYour message has been added to the group chat.",
+                    ephemeral=True
+                )
+                
+                # Update the chat view for everyone
+                await show_group_chat(interaction)
+            else:
+                await interaction.followup.send("Failed to send your message. Please try again.", ephemeral=True)
+                
+        except Exception as e:
+            logger.error(f"Error sending chat message: {e}")
+            await interaction.followup.send(f"An error occurred: {str(e)}", ephemeral=True)
+
 class ConfigSettingsModal(discord.ui.Modal):
     def __init__(self, setting_key: str, current_value, *args, **kwargs):
         super().__init__(title=f"Configure {setting_key.replace('_', ' ').title()}", *args, **kwargs)
@@ -2294,6 +2378,198 @@ async def rate_app_callback(interaction: discord.Interaction):
                 # If all else fails, try to send a followup message
                 try:
                     await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
+async def open_chat_callback(interaction: discord.Interaction):
+    """Handle opening the group chat."""
+    try:
+        # Extract user ID from custom_id
+        custom_id = interaction.data["custom_id"]
+        user_id = int(custom_id.split("_")[-1])
+        
+        # Ensure the user is opening their own chat
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("You can only access chat from your own dashboard.", ephemeral=True)
+            return
+            
+        # Show the group chat
+        await show_group_chat(interaction)
+        
+    except Exception as e:
+        logger.error(f"Error in open_chat_callback: {e}")
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
+async def show_group_chat(interaction: discord.Interaction):
+    """Display the group chat and its controls."""
+    try:
+        # Verify the user exists
+        user = get_user(interaction.user.id)
+        if not user:
+            await interaction.response.send_message("You must be registered to use the group chat.", ephemeral=True)
+            return
+            
+        # Get recent messages for all users
+        messages = get_recent_chat_messages(limit=30)  # Increased limit to show more chat history
+        
+        # Create message header
+        header = "# 💬 KashFlow Community Chat 💬\n\n"
+        header += "**All users can see this chat and participate in the conversation.**\n\n"
+        
+        if not messages:
+            header += "No messages yet. Be the first to send a message!\n\n"
+        else:
+            # Format messages
+            message_list = []
+            for msg in reversed(messages):  # Display in chronological order (oldest first)
+                timestamp = datetime.fromisoformat(msg.get("timestamp", "")).strftime("%H:%M:%S")
+                
+                # Format based on message type
+                if msg.get("type") == "image":
+                    message_content = f"[Shared an image] {msg.get('content')}"
+                elif msg.get("type") == "voice":
+                    message_content = f"[Shared a voice note] {msg.get('content')}"
+                elif msg.get("type") == "referral":
+                    message_content = f"🎯 {msg.get('content')}"
+                else:
+                    message_content = msg.get("content", "")
+                
+                # Format the message with date
+                date = datetime.fromisoformat(msg.get("timestamp", "")).strftime("%Y-%m-%d")
+                formatted_msg = f"**{msg.get('username')}** ({date} at {timestamp}):\n{message_content}"
+                
+                # Add attachment link if present
+                if msg.get("attachment_url"):
+                    formatted_msg += f"\n[View attachment]({msg.get('attachment_url')})"
+                
+                message_list.append(formatted_msg)
+            
+            # Join messages with separators
+            header += "\n\n".join(message_list)
+        
+        # Create chat controls
+        view = discord.ui.View(timeout=None)
+        
+        # Send message button
+        send_button = discord.ui.Button(
+            style=discord.ButtonStyle.primary,
+            label="Send Message",
+            custom_id=f"send_chat_message_{interaction.user.id}"
+        )
+        
+        async def send_message_callback(send_interaction: discord.Interaction):
+            try:
+                # Check if this is the user's own interaction
+                if send_interaction.user.id != interaction.user.id:
+                    # Different user is clicking - show modal for their own user ID
+                    modal = ChatMessageModal(send_interaction.user.id, send_interaction.user.name)
+                    await send_interaction.response.send_modal(modal)
+                else:
+                    # Same user is clicking - proceed as normal
+                    modal = ChatMessageModal(interaction.user.id, interaction.user.name)
+                    await send_interaction.response.send_modal(modal)
+            except Exception as e:
+                logger.error(f"Error in send_message_callback: {e}")
+                await send_interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+        
+        send_button.callback = send_message_callback
+        view.add_item(send_button)
+        
+        # Refresh button
+        refresh_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary,
+            label="Refresh Chat",
+            custom_id=f"refresh_chat_{interaction.user.id}"
+        )
+        
+        async def refresh_callback(refresh_interaction: discord.Interaction):
+            # Anyone can refresh the chat
+            await show_group_chat(refresh_interaction)
+        
+        refresh_button.callback = refresh_callback
+        view.add_item(refresh_button)
+        
+        # Back to dashboard button
+        dashboard_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary,
+            label="Back to Dashboard",
+            custom_id=f"back_to_dashboard_{interaction.user.id}"
+        )
+        
+        async def back_to_dashboard_callback(back_interaction: discord.Interaction):
+            # Check if user exists
+            back_user = get_user(back_interaction.user.id)
+            if back_user:
+                await back_interaction.response.send_message(
+                    f"**Your Dashboard**\n\n" +
+                    f"Current Balance: **₦{back_user.balance}**\n" +
+                    f"Referral Count: **{back_user.referral_count}**\n" +
+                    f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
+                    "**Dashboard Controls**:\n" +
+                    "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+                    "• **Check Balance**: View your current balance and referral count\n" +
+                    f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & ₦{WITHDRAWAL_THRESHOLD} minimum)\n" +
+                    "• **Set Bank Information**: Update your bank details for withdrawals",
+                    view=create_user_dashboard_view(back_interaction.user.id),
+                    ephemeral=False
+                )
+            else:
+                await back_interaction.response.send_message(
+                    "You need to register first. Use /start to register with a coupon code.",
+                    ephemeral=True
+                )
+        
+        dashboard_button.callback = back_to_dashboard_callback
+        view.add_item(dashboard_button)
+        
+        # Share Referral Link button
+        share_button = discord.ui.Button(
+            style=discord.ButtonStyle.success,
+            label="Share Referral Link",
+            custom_id=f"share_referral_{interaction.user.id}"
+        )
+        
+        async def share_referral_callback(share_interaction: discord.Interaction):
+            try:
+                # Create a referral message with the clicking user's ID (not the original interaction user)
+                referral_message = f"My referral ID: **{share_interaction.user.id}**\nUse my ID to earn ₦{WELCOME_BONUS} bonus when you register!"
+                
+                # Create modal with pre-filled referral message
+                modal = ChatMessageModal(share_interaction.user.id, share_interaction.user.name)
+                modal.children[0].default = referral_message
+                
+                # Show the modal
+                await share_interaction.response.send_modal(modal)
+            except Exception as e:
+                logger.error(f"Error in share_referral_callback: {e}")
+                await share_interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+        
+        share_button.callback = share_referral_callback
+        view.add_item(share_button)
+        
+        # Show the chat - Important: Make ephemeral=False so everyone can see the chat and messages
+        if not interaction.response.is_done():
+            await interaction.response.send_message(header, view=view, ephemeral=False)
+        else:
+            await interaction.followup.send(header, view=view, ephemeral=False)
+            
+    except Exception as e:
+        logger.error(f"Error in show_group_chat: {e}")
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong loading the group chat. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong loading the group chat. Please try again.", ephemeral=True)
                 except:
                     pass
 
