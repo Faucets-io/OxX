@@ -46,6 +46,9 @@ MINIMUM_REFERRALS = 4  # Minimum number of referrals required for withdrawal
 COUPON_PRICE = 500  # Price of coupon in Naira
 COUPON_LENGTH = 12  # Length of coupon code
 
+# Bot status control
+BOT_ENABLED_FOR_USERS = True  # Bot status flag
+
 # File paths
 USERS_FILE = 'users.json'
 COUPONS_FILE = 'coupons.json'
@@ -226,6 +229,11 @@ def update_transaction_status(transaction_id: str, status: str) -> None:
         transactions[transaction_id]["status"] = status
         transactions[transaction_id]["updated_at"] = datetime.now().isoformat()
         save_transactions(transactions)
+        
+def get_pending_transactions() -> Dict[str, Dict]:
+    """Get all pending transactions."""
+    transactions = load_transactions()
+    return {tid: tdata for tid, tdata in transactions.items() if tdata.get("status") == "pending"}
 
 # Transaction callback functions
 async def transaction_confirm_callback(interaction: discord.Interaction):
@@ -451,6 +459,26 @@ def create_admin_dashboard_view() -> discord.ui.View:
     )
     button_view_balance.callback = admin_view_balance_callback
     view.add_item(button_view_balance)
+    
+    # View pending transactions button
+    button_pending_transactions = discord.ui.Button(
+        style=discord.ButtonStyle.primary,
+        label="View Pending Transactions",
+        custom_id="admin_view_pending"
+    )
+    button_pending_transactions.callback = admin_view_pending_transactions_callback
+    view.add_item(button_pending_transactions)
+    
+    # Toggle bot status button
+    bot_status_label = "Disable Bot" if BOT_ENABLED_FOR_USERS else "Enable Bot"
+    bot_status_style = discord.ButtonStyle.danger if BOT_ENABLED_FOR_USERS else discord.ButtonStyle.success
+    button_toggle_bot = discord.ui.Button(
+        style=bot_status_style,
+        label=bot_status_label,
+        custom_id="admin_toggle_bot"
+    )
+    button_toggle_bot.callback = admin_toggle_bot_status_callback
+    view.add_item(button_toggle_bot)
     
     return view
 
@@ -1115,6 +1143,179 @@ async def admin_view_balance_callback(interaction: discord.Interaction):
                 except:
                     pass
 
+async def admin_view_pending_transactions_callback(interaction: discord.Interaction):
+    """Handle viewing all pending transactions."""
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        pending_transactions = get_pending_transactions()
+        
+        if not pending_transactions:
+            await interaction.response.send_message(
+                "There are no pending transactions.",
+                ephemeral=True
+            )
+            return
+        
+        # Format the pending transactions
+        pending_list = []
+        for tid, tdata in pending_transactions.items():
+            pending_list.append(
+                f"ID: **{tid}**\n"
+                f"User: {tdata['username']} ({tdata['user_id']})\n"
+                f"Amount: {tdata['amount']} naira\n"
+                f"Bank: {tdata['bank_name']}\n"
+                f"Account: {tdata['bank_account_number']} ({tdata['bank_account_name']})\n"
+                f"Time: {tdata.get('timestamp', 'Unknown')}\n"
+                "--------------------"
+            )
+            
+        # Create the message with confirmation buttons for each transaction
+        message = f"**{len(pending_transactions)} Pending Transactions**\n\n"
+        
+        # Split into chunks if necessary
+        if len(pending_list) > 5:
+            message += f"Showing first 5 of {len(pending_list)} transactions:\n\n"
+            pending_list = pending_list[:5]
+        
+        message += "\n".join(pending_list)
+        
+        # Create a view with buttons for each transaction
+        view = discord.ui.View(timeout=None)
+        
+        # Add approve all button
+        approve_all_button = discord.ui.Button(
+            style=discord.ButtonStyle.success,
+            label=f"Approve All ({len(pending_transactions)} Transactions)",
+            custom_id="admin_approve_all"
+        )
+        approve_all_button.callback = admin_approve_all_transactions_callback
+        view.add_item(approve_all_button)
+        
+        # Send the response with the view
+        await interaction.response.send_message(
+            message,
+            view=view,
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_view_pending_transactions_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
+async def admin_approve_all_transactions_callback(interaction: discord.Interaction):
+    """Handle approving all pending transactions."""
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        # Get all pending transactions
+        pending_transactions = get_pending_transactions()
+        
+        if not pending_transactions:
+            await interaction.response.send_message(
+                "There are no pending transactions to approve.",
+                ephemeral=True
+            )
+            return
+        
+        # Approve all pending transactions
+        approved_count = 0
+        transaction_details = []
+        confirmation_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        for transaction_id, transaction in pending_transactions.items():
+            # Update transaction status
+            update_transaction_status(transaction_id, "completed")
+            approved_count += 1
+            
+            # Add transaction details to list
+            transaction_details.append(
+                f"ID: {transaction_id}\n"
+                f"User: {transaction['username']} ({transaction['user_id']})\n"
+                f"Amount: {transaction['amount']} naira"
+            )
+            
+            # Try to notify the user
+            try:
+                user = await bot.fetch_user(int(transaction["user_id"]))
+                if user:
+                    await user.send(
+                        f"💰 **WITHDRAWAL SUCCESSFUL!**\n\n" +
+                        f"Amount: {transaction['amount']} naira\n" +
+                        f"Transaction ID: {transaction_id}\n" +
+                        f"Bank: {transaction['bank_name']}\n" +
+                        f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
+                        f"Confirmation Time: {confirmation_time}\n\n" +
+                        f"Your account has been cleared. Thank you for using KashFlow!\n" +
+                        f"You can register again with a new coupon code."
+                    )
+            except Exception as e:
+                logger.error(f"Failed to notify user about transaction confirmation: {e}")
+        
+        # Send confirmation message
+        details = "\n\n".join(transaction_details[:5])
+        if len(transaction_details) > 5:
+            details += f"\n\n...and {len(transaction_details) - 5} more transactions"
+            
+        await interaction.response.send_message(
+            f"✅ Approved {approved_count} transactions successfully!\n\n{details}",
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_approve_all_transactions_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
+async def admin_toggle_bot_status_callback(interaction: discord.Interaction):
+    """Handle toggling the bot's status (enabled/disabled for users)."""
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        global BOT_ENABLED_FOR_USERS
+        BOT_ENABLED_FOR_USERS = not BOT_ENABLED_FOR_USERS
+        
+        status = "enabled" if BOT_ENABLED_FOR_USERS else "disabled"
+        await interaction.response.send_message(
+            f"✅ Bot is now {status} for regular users. " +
+            (f"Users can now use the bot normally." if BOT_ENABLED_FOR_USERS else 
+             f"Only admins can use the bot until you enable it again."),
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_toggle_bot_status_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
 # Add button persistence - this is crucial for working without privileged intents
 @bot.event
 async def on_ready():
@@ -1240,6 +1441,14 @@ async def on_command_error(ctx, error):
 @bot.tree.command(name="start", description="Start using the bot")
 async def start(interaction: discord.Interaction):
     """Start command for new users to register with a coupon code."""
+    # Check if bot is disabled for non-admins
+    if not BOT_ENABLED_FOR_USERS and not is_admin(interaction.user.id):
+        await interaction.response.send_message(
+            "⚠️ The bot is currently disabled for maintenance. Please try again later.",
+            ephemeral=True
+        )
+        return
+        
     # Check if user is already registered
     user = get_user(interaction.user.id)
     
@@ -1265,6 +1474,14 @@ async def start(interaction: discord.Interaction):
 @bot.tree.command(name="dashboard", description="View your dashboard")
 async def dashboard(interaction: discord.Interaction):
     """Show the user dashboard for existing users."""
+    # Check if bot is disabled for non-admins
+    if not BOT_ENABLED_FOR_USERS and not is_admin(interaction.user.id):
+        await interaction.response.send_message(
+            "⚠️ The bot is currently disabled for maintenance. Please try again later.",
+            ephemeral=True
+        )
+        return
+        
     user = get_user(interaction.user.id)
     
     if not user:
