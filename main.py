@@ -49,6 +49,10 @@ COUPON_LENGTH = 12  # Length of coupon code
 # Bot status control
 BOT_ENABLED_FOR_USERS = True  # Bot status flag
 
+# Contact information
+WHATSAPP_COMMUNITY_LINK = "https://chat.whatsapp.com/JMp6tB5yMTq1dMBYttIZOj"
+SUPPORT_EMAIL = "contactkashflow@yahoo.com"
+
 # File paths
 USERS_FILE = 'users.json'
 COUPONS_FILE = 'coupons.json'
@@ -197,6 +201,121 @@ def clear_used_coupons() -> int:
     save_coupons(coupons)
     return len(used_coupons)
 
+# Animation and notification utilities
+async def send_animated_message(destination, frames, duration=2.0, final_frame=None, ephemeral=False):
+    """
+    Send an animated message by quickly editing the message with different frames.
+    
+    Parameters:
+    - destination: The Discord channel or user to send the message to
+    - frames: List of strings representing animation frames
+    - duration: Total duration of animation in seconds
+    - final_frame: Final message to display after animation (if None, last frame is used)
+    - ephemeral: Whether the message should be ephemeral (only works with interaction responses)
+    
+    Returns:
+    - The final message object
+    """
+    if not frames:
+        return None
+        
+    # Calculate delay between frames
+    frame_count = len(frames)
+    delay = duration / frame_count
+    
+    # Send first frame
+    if isinstance(destination, discord.Interaction):
+        if destination.response.is_done():
+            message = await destination.followup.send(frames[0], ephemeral=ephemeral)
+        else:
+            await destination.response.send_message(frames[0], ephemeral=ephemeral)
+            message = await destination.original_response()
+    else:
+        message = await destination.send(frames[0])
+    
+    # Animate by editing the message
+    for frame in frames[1:]:
+        await asyncio.sleep(delay)
+        try:
+            await message.edit(content=frame)
+        except discord.NotFound:
+            # Message might have been deleted
+            return None
+        except Exception as e:
+            logger.error(f"Error editing animated message: {e}")
+            break
+    
+    # Set final frame if provided
+    if final_frame is not None:
+        try:
+            await message.edit(content=final_frame)
+        except Exception as e:
+            logger.error(f"Error setting final frame: {e}")
+    
+    return message
+
+# Animation frame generators
+def generate_loading_frames(message, duration=3, width=10):
+    """Generate loading animation frames."""
+    symbols = ["⬜", "⬛"]
+    frames = []
+    
+    for i in range(width + 1):
+        bar = symbols[1] * i + symbols[0] * (width - i)
+        percentage = int((i / width) * 100)
+        frames.append(f"{message}\n\n`[{bar}] {percentage}%`")
+    
+    return frames
+
+def generate_success_animation(message):
+    """Generate success animation frames."""
+    frames = [
+        f"⬜⬜⬜\n⬜⬜⬜\n⬜⬜⬜\n\n{message}",
+        f"⬜⬜⬜\n⬜🟩⬜\n⬜⬜⬜\n\n{message}",
+        f"⬜⬜⬜\n⬜🟩⬜\n⬜🟩⬜\n\n{message}",
+        f"⬜⬜⬜\n⬜🟩⬜\n⬜🟩🟩\n\n{message}",
+        f"⬜⬜⬜\n⬜🟩🟩\n⬜🟩🟩\n\n{message}",
+        f"⬜🟩⬜\n⬜🟩🟩\n⬜🟩🟩\n\n{message}",
+        f"🟩🟩⬜\n⬜🟩🟩\n⬜🟩🟩\n\n{message}",
+        f"🟩🟩🟩\n⬜🟩🟩\n⬜🟩🟩\n\n{message}",
+        f"🟩🟩🟩\n🟩🟩🟩\n⬜🟩🟩\n\n{message}",
+        f"🟩🟩🟩\n🟩🟩🟩\n🟩🟩🟩\n\n{message}",
+        f"✅\n\n{message}"
+    ]
+    return frames
+
+def generate_error_animation(message):
+    """Generate error animation frames."""
+    frames = [
+        f"⬜⬜⬜\n⬜⬜⬜\n⬜⬜⬜\n\n{message}",
+        f"🟥⬜⬜\n⬜⬜⬜\n⬜⬜🟥\n\n{message}",
+        f"🟥⬜🟥\n⬜⬜⬜\n🟥⬜🟥\n\n{message}",
+        f"🟥⬜🟥\n⬜🟥⬜\n🟥⬜🟥\n\n{message}",
+        f"🟥⬜🟥\n⬜🟥⬜\n🟥⬜🟥\n\n{message}",
+        f"🟥🟥🟥\n🟥🟥🟥\n🟥🟥🟥\n\n{message}",
+        f"❌\n\n{message}"
+    ]
+    return frames
+
+def generate_coins_animation(amount, message):
+    """Generate coin animation frames for payments/rewards."""
+    base_frames = [
+        "💰",
+        "💰💰",
+        "💰💰💰",
+        "💰💰💰💰",
+        "💰💰💰💰💰",
+    ]
+    
+    frames = []
+    for frame in base_frames:
+        frames.append(f"{frame}\n\n**{amount} naira**\n{message}")
+    
+    # Final frame with sparkles
+    frames.append(f"✨💰💰💰💰💰✨\n\n**{amount} naira**\n{message}")
+    
+    return frames
+
 # Transaction management functions
 def load_transactions() -> Dict[str, Dict]:
     """Load transactions from file."""
@@ -276,12 +395,12 @@ async def transaction_confirm_callback(interaction: discord.Interaction):
             ephemeral=True
         )
         
-        # Try to notify the user
+        # Try to notify the user with animation
         try:
-            user = await bot.fetch_user(int(transaction["user_id"]))
-            if user:
-                await user.send(
-                    f"💰 **WITHDRAWAL SUCCESSFUL!**\n\n" +
+            user_obj = await bot.fetch_user(int(transaction["user_id"]))
+            if user_obj:
+                # Prepare the message content
+                message_content = (
                     f"Amount: {transaction['amount']} naira\n" +
                     f"Transaction ID: {transaction_id}\n" +
                     f"Bank: {transaction['bank_name']}\n" +
@@ -290,6 +409,15 @@ async def transaction_confirm_callback(interaction: discord.Interaction):
                     f"Your account has been cleared. Thank you for using KashFlow!\n" +
                     f"You can register again with a new coupon code."
                 )
+                
+                # Generate success animation frames
+                frames = generate_coins_animation(transaction['amount'], message_content)
+                
+                # Final celebratory message
+                final_frame = f"💰 **WITHDRAWAL SUCCESSFUL!** 💰\n\n{message_content}"
+                
+                # Send animated notification
+                await send_animated_message(user_obj, frames, duration=3.0, final_frame=final_frame)
         except Exception as e:
             logger.error(f"Failed to notify user about transaction confirmation: {e}")
     except Exception as e:
@@ -343,16 +471,26 @@ async def transaction_decline_callback(interaction: discord.Interaction):
             ephemeral=True
         )
         
-        # Try to notify the user
+        # Try to notify the user with animation
         try:
-            user = await bot.fetch_user(int(transaction["user_id"]))
-            if user:
-                await user.send(
-                    f"❌ Your withdrawal of {transaction['amount']} naira has been declined.\n\n" +
+            user_obj = await bot.fetch_user(int(transaction["user_id"]))
+            if user_obj:
+                # Prepare the message content
+                message_content = (
+                    f"Your withdrawal of {transaction['amount']} naira has been declined.\n\n" +
                     f"Transaction ID: {transaction_id}\n" +
                     f"Decline Time: {decline_time}\n\n" +
                     f"Please contact an admin for more information."
                 )
+                
+                # Generate error animation frames
+                frames = generate_error_animation(message_content)
+                
+                # Final error message
+                final_frame = f"❌ **TRANSACTION DECLINED** ❌\n\n{message_content}"
+                
+                # Send animated notification
+                await send_animated_message(user_obj, frames, duration=2.0, final_frame=final_frame)
         except Exception as e:
             logger.error(f"Failed to notify user about transaction decline: {e}")
     except Exception as e:
@@ -556,17 +694,25 @@ class RegisterModal(discord.ui.Modal):
             users[referred_by] = referrer
             save_users(users)
             
-            # Try to notify the referrer
+            # Try to notify the referrer with animation
             try:
                 referrer_user = await bot.fetch_user(referred_by)
                 if referrer_user:
-                    await referrer_user.send(
-                        f"🎉 **REFERRAL BONUS RECEIVED!**\n\n" +
-                        f"You just earned {REFERRAL_BONUS} naira for referring {interaction.user.name}!\n" +
+                    message = (
+                        f"You just earned a referral bonus for referring {interaction.user.name}!\n" +
                         f"Your new balance is {referrer.balance} naira.\n" +
                         f"Your referral count is now {referrer.referral_count}.\n\n" +
                         f"Keep sharing your referral ID to earn more!"
                     )
+                    
+                    # Generate coins animation frames
+                    frames = generate_coins_animation(REFERRAL_BONUS, message)
+                    
+                    # Add sparkle animation at the end
+                    final_frame = f"🎉 **REFERRAL BONUS RECEIVED!** 🎉\n\n" + message
+                    
+                    # Send the animated notification
+                    await send_animated_message(referrer_user, frames, duration=3.0, final_frame=final_frame)
             except Exception as e:
                 logger.error(f"Failed to notify referrer about bonus: {e}")
         
@@ -579,15 +725,37 @@ class RegisterModal(discord.ui.Modal):
         # Create dashboard view
         view = create_user_dashboard_view(user_id)
         
-        # Send dashboard with instructions
-        await interaction.followup.send(
-            f"✅ Registration successful! You received {WELCOME_BONUS} naira as welcome bonus." +
-            (f" Your referrer received {REFERRAL_BONUS} naira." if referred_by else "") +
-            "\n\n**Your Dashboard Controls**: \n" +
+        # Prepare welcome message
+        welcome_message = (
+            f"Registration successful! You received {WELCOME_BONUS} naira as welcome bonus." +
+            (f" Your referrer received {REFERRAL_BONUS} naira." if referred_by else "")
+        )
+        
+        # Generate success animation frames
+        frames = generate_coins_animation(WELCOME_BONUS, welcome_message)
+        
+        # Final frame with complete dashboard instructions
+        final_frame = (
+            f"✅ {welcome_message}\n\n" +
+            "**Your Dashboard Controls**: \n" +
             "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
             "• **Check Balance**: View your current balance and referral count\n" +
             f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
-            "• **Set Bank Information**: Update your bank details for withdrawals",
+            "• **Set Bank Information**: Update your bank details for withdrawals"
+        )
+        
+        # Send animated welcome message
+        await send_animated_message(
+            interaction, 
+            frames, 
+            duration=3.0, 
+            final_frame=final_frame, 
+            ephemeral=False
+        )
+        
+        # Add dashboard buttons separately since we used animation
+        await interaction.followup.send(
+            "Your Dashboard Controls:",
             view=view,
             ephemeral=False
         )
@@ -1354,6 +1522,16 @@ async def on_ready():
         admin_clear_used_button.callback = admin_clear_used_callback
         admin_view_balance_button.callback = admin_view_balance_callback
         
+        # Add callbacks for our new admin buttons
+        admin_view_pending_button = discord.ui.Button(style=discord.ButtonStyle.primary, label="View Pending Transactions", custom_id="admin_view_pending")
+        admin_toggle_bot_button = discord.ui.Button(
+            style=discord.ButtonStyle.danger if BOT_ENABLED_FOR_USERS else discord.ButtonStyle.success,
+            label="Disable Bot" if BOT_ENABLED_FOR_USERS else "Enable Bot", 
+            custom_id="admin_toggle_bot"
+        )
+        admin_view_pending_button.callback = admin_view_pending_transactions_callback
+        admin_toggle_bot_button.callback = admin_toggle_bot_status_callback
+        
         # Add the buttons to views
         user_view.add_item(copy_id_button)
         user_view.add_item(check_balance_button)
@@ -1365,6 +1543,8 @@ async def on_ready():
         admin_view.add_item(admin_generate_button)
         admin_view.add_item(admin_clear_used_button)
         admin_view.add_item(admin_view_balance_button)
+        admin_view.add_item(admin_view_pending_button)
+        admin_view.add_item(admin_toggle_bot_button)
         
         # Generate bot invite link with proper permissions
         permissions = discord.Permissions(
@@ -1531,6 +1711,9 @@ async def admin(interaction: discord.Interaction):
     admin_type = "Primary Admin (Full Access)" if is_primary else "Secondary Admin (Limited Access)"
     coupon_note = "" if is_primary else "\n**Note:** Only the primary admin can generate coupon codes."
     
+    # Bot status message
+    bot_status = "ENABLED" if BOT_ENABLED_FOR_USERS else "DISABLED"
+    
     await interaction.response.send_message(
         f"**Admin Dashboard - {admin_type}**\n\n" +
         "• **Start**: Show admin dashboard\n" +
@@ -1538,12 +1721,95 @@ async def admin(interaction: discord.Interaction):
         "• **Generate Coupons**: Create new coupon codes for users\n" +
         "• **Clear Used**: Remove used coupon codes from the system\n" +
         "• **View Balance**: Check total balance across all users\n" +
+        "• **View Pending Transactions**: See and manage pending withdrawals\n" +
+        f"• **{'Disable' if BOT_ENABLED_FOR_USERS else 'Enable'} Bot**: Currently {bot_status} for users\n" +
         f"{coupon_note}\n\n" +
         f"**Bot Invite Link**:\n{invite_link}\n" +
         "You can share this link to invite the bot to other servers.",
         view=create_admin_dashboard_view(),
         ephemeral=True
     )
+
+# Add help command
+@bot.tree.command(name="help", description="Get help and contact information")
+async def help_command(interaction: discord.Interaction):
+    """Show help and contact information."""
+    # Check if bot is disabled for non-admins
+    if not BOT_ENABLED_FOR_USERS and not is_admin(interaction.user.id):
+        await interaction.response.send_message(
+            "⚠️ The bot is currently disabled for maintenance. Please try again later.",
+            ephemeral=True
+        )
+        return
+    
+    # Generate help message with contact info
+    help_message = (
+        "# 📚 KashFlow Bot Help\n\n"
+        "**KashFlow** is a referral rewards system where you can earn naira by referring new users.\n\n"
+        "## 🤝 How It Works\n"
+        f"• Get **{WELCOME_BONUS}** naira as welcome bonus when you register\n"
+        f"• Earn **{REFERRAL_BONUS}** naira for each person you refer\n"
+        f"• Withdraw when you reach **{WITHDRAWAL_THRESHOLD}** naira and have **{MINIMUM_REFERRALS}** referrals\n\n"
+        "## 📝 Commands\n"
+        "• **/start** - Register or view your dashboard\n"
+        "• **/dashboard** - Check your balance and referrals\n"
+        "• **/help** - Show this help message\n\n"
+        "## 📱 Community & Support\n"
+        f"• **WhatsApp Community**: [Join here]({WHATSAPP_COMMUNITY_LINK})\n"
+        f"• **Support Email**: {SUPPORT_EMAIL}\n\n"
+        "Share your referral ID with friends to earn rewards! Use the buttons below to get started."
+    )
+    
+    # Create view with dashboard and referral links
+    view = discord.ui.View(timeout=None)
+    
+    # Dashboard button
+    dashboard_button = discord.ui.Button(
+        style=discord.ButtonStyle.primary,
+        label="Go to Dashboard",
+        custom_id="help_dashboard"
+    )
+    
+    # WhatsApp link
+    whatsapp_button = discord.ui.Button(
+        style=discord.ButtonStyle.link,
+        label="Join WhatsApp Community",
+        url=WHATSAPP_COMMUNITY_LINK
+    )
+    
+    # Set callback for dashboard button
+    async def dashboard_callback(dashboard_interaction):
+        user = get_user(dashboard_interaction.user.id)
+        if user:
+            # User exists, show dashboard
+            await dashboard_interaction.response.send_message(
+                f"**Your Dashboard**\n\n" +
+                f"Current Balance: **{user.balance}** naira\n" +
+                f"Referral Count: **{user.referral_count}**\n" +
+                f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+                "**Dashboard Controls**:\n" +
+                "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+                "• **Check Balance**: View your current balance and referral count\n" +
+                f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
+                "• **Set Bank Information**: Update your bank details for withdrawals",
+                view=create_user_dashboard_view(dashboard_interaction.user.id),
+                ephemeral=False
+            )
+        else:
+            # User doesn't exist, prompt to register
+            await dashboard_interaction.response.send_message(
+                "You're not registered yet. Use /start to register with a coupon code.",
+                ephemeral=True
+            )
+    
+    dashboard_button.callback = dashboard_callback
+    
+    # Add buttons to view
+    view.add_item(dashboard_button)
+    view.add_item(whatsapp_button)
+    
+    # Send help message with buttons
+    await interaction.response.send_message(help_message, view=view, ephemeral=False)
 
 # Import here to avoid circular imports
 import io
