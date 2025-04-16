@@ -2945,9 +2945,9 @@ async def on_ready():
             if user:
                 await interaction.response.send_message(
                     f"**Your Dashboard**\n\n" +
-                    f"Current Balance: **{user.balance}** naira\n" +
+                    f"Current Balance: **₦{user.balance}**\n" +
                     f"Referral Count: **{user.referral_count}**\n" +
-                    f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+                    f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
                     "**Dashboard Controls**:\n" +
                     "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
                     "• **Check Balance**: View your current balance and referral count\n" +
@@ -3113,13 +3113,13 @@ async def start(interaction: discord.Interaction):
         # Send dashboard with the view
         await interaction.response.send_message(
             f"**Welcome back {interaction.user.name}!**\n\n" +
-            f"Current Balance: **{user.balance}** naira\n" +
+            f"Current Balance: **₦{user.balance}**\n" +
             f"Referral Count: **{user.referral_count}**\n" +
-            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
             "**Dashboard Controls**:\n" +
             "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
             "• **Check Balance**: View your current balance and referral count\n" +
-            f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
+            f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & ₦{WITHDRAWAL_THRESHOLD} minimum)\n" +
             "• **Set Bank Information**: Update your bank details for withdrawals",
             view=view,
             ephemeral=False
