@@ -1051,11 +1051,54 @@ class RegisterModal(discord.ui.Modal):
         )
         
         # Add dashboard buttons separately since we used animation
-        await interaction.followup.send(
+        dashboard_message = await interaction.followup.send(
             "Your Dashboard Controls:",
             view=view,
             ephemeral=False
         )
+        
+        # Start tutorial if enabled
+        if TUTORIAL_ENABLED:
+            try:
+                # Get tutorial content for first step
+                tutorial_step = 0
+                tutorial_content = get_tutorial_content(tutorial_step)
+                
+                # Create message content
+                message = f"# {tutorial_content['title']}\n\n{tutorial_content['content']}"
+                
+                # Create tutorial view
+                tutorial_view = TutorialView(user_id, tutorial_step)
+                
+                # Send tutorial message with animation
+                frames = generate_tutorial_frames(message)
+                
+                # Send animated tutorial introduction
+                await send_animated_message(
+                    interaction.user,  # Send DM to user
+                    frames,
+                    duration=2.0,
+                    final_frame=message
+                )
+                
+                # Send view as a followup
+                await interaction.user.send(view=tutorial_view)
+                
+                # Update user's tutorial progress
+                update_tutorial_progress(user_id, step=tutorial_step)
+                
+                # Send instruction to check DMs
+                await interaction.followup.send(
+                    "📚 **Check your DMs for an interactive tutorial!** I've sent you a step-by-step guide to help you get started with KashFlow.",
+                    ephemeral=False
+                )
+            except Exception as e:
+                logger.error(f"Failed to start tutorial for user {user_id}: {e}")
+                # If we can't DM the user, show tutorial in the channel
+                await interaction.followup.send(
+                    "I couldn't send you a DM. Please make sure your privacy settings allow DMs from server members.",
+                    ephemeral=True
+                )
 
 class BankInfoModal(discord.ui.Modal):
     def __init__(self, user_id: int, *args, **kwargs):
@@ -1967,6 +2010,71 @@ async def start(interaction: discord.Interaction):
     user = get_user(interaction.user.id)
     
     if user:
+        # Create dashboard view
+        view = create_user_dashboard_view(interaction.user.id)
+        
+        # Add tutorial button if tutorial is enabled
+        if TUTORIAL_ENABLED:
+            # Create tutorial button
+            tutorial_button = discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label="Start Tutorial",
+                custom_id=f"restart_tutorial_{interaction.user.id}"
+            )
+            
+            # Define callback for tutorial button
+            async def restart_tutorial_callback(tutorial_interaction: discord.Interaction):
+                # Verify user
+                if tutorial_interaction.user.id != interaction.user.id:
+                    await tutorial_interaction.response.send_message(
+                        "This is not your dashboard.", 
+                        ephemeral=True
+                    )
+                    return
+                
+                try:
+                    # Reset tutorial progress
+                    update_tutorial_progress(interaction.user.id, step=0, completed=False)
+                    
+                    # Get tutorial content for first step
+                    tutorial_step = 0
+                    tutorial_content = get_tutorial_content(tutorial_step)
+                    
+                    # Create message content
+                    message = f"# {tutorial_content['title']}\n\n{tutorial_content['content']}"
+                    
+                    # Create tutorial view
+                    tutorial_view = TutorialView(interaction.user.id, tutorial_step)
+                    
+                    # Create animation frames
+                    frames = generate_tutorial_frames(message)
+                    
+                    # Send animated response
+                    await tutorial_interaction.response.defer()
+                    await send_animated_message(
+                        tutorial_interaction,
+                        frames,
+                        duration=1.5,
+                        final_frame=message
+                    )
+                    
+                    # Send view as a followup
+                    await tutorial_interaction.followup.send(view=tutorial_view)
+                    
+                except Exception as e:
+                    logger.error(f"Failed to restart tutorial for user {interaction.user.id}: {e}")
+                    await tutorial_interaction.response.send_message(
+                        "An error occurred while starting the tutorial. Please try again.",
+                        ephemeral=True
+                    )
+            
+            # Set callback
+            tutorial_button.callback = restart_tutorial_callback
+            
+            # Add button to view
+            view.add_item(tutorial_button)
+        
+        # Send dashboard with the view
         await interaction.response.send_message(
             f"**Welcome back {interaction.user.name}!**\n\n" +
             f"Current Balance: **{user.balance}** naira\n" +
@@ -1977,7 +2085,7 @@ async def start(interaction: discord.Interaction):
             "• **Check Balance**: View your current balance and referral count\n" +
             f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
             "• **Set Bank Information**: Update your bank details for withdrawals",
-            view=create_user_dashboard_view(interaction.user.id),
+            view=view,
             ephemeral=False
         )
     else:
@@ -2005,6 +2113,71 @@ async def dashboard(interaction: discord.Interaction):
         )
         return
     
+    # Create dashboard view
+    view = create_user_dashboard_view(interaction.user.id)
+    
+    # Add tutorial button if tutorial is enabled
+    if TUTORIAL_ENABLED:
+        # Create tutorial button
+        tutorial_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary,
+            label="Start Tutorial",
+            custom_id=f"restart_tutorial_{interaction.user.id}"
+        )
+        
+        # Define callback for tutorial button
+        async def restart_tutorial_callback(tutorial_interaction: discord.Interaction):
+            # Verify user
+            if tutorial_interaction.user.id != interaction.user.id:
+                await tutorial_interaction.response.send_message(
+                    "This is not your dashboard.", 
+                    ephemeral=True
+                )
+                return
+            
+            try:
+                # Reset tutorial progress
+                update_tutorial_progress(interaction.user.id, step=0, completed=False)
+                
+                # Get tutorial content for first step
+                tutorial_step = 0
+                tutorial_content = get_tutorial_content(tutorial_step)
+                
+                # Create message content
+                message = f"# {tutorial_content['title']}\n\n{tutorial_content['content']}"
+                
+                # Create tutorial view
+                tutorial_view = TutorialView(interaction.user.id, tutorial_step)
+                
+                # Create animation frames
+                frames = generate_tutorial_frames(message)
+                
+                # Send animated response
+                await tutorial_interaction.response.defer()
+                await send_animated_message(
+                    tutorial_interaction,
+                    frames,
+                    duration=1.5,
+                    final_frame=message
+                )
+                
+                # Send view as a followup
+                await tutorial_interaction.followup.send(view=tutorial_view)
+                
+            except Exception as e:
+                logger.error(f"Failed to restart tutorial for user {interaction.user.id}: {e}")
+                await tutorial_interaction.response.send_message(
+                    "An error occurred while starting the tutorial. Please try again.",
+                    ephemeral=True
+                )
+        
+        # Set callback
+        tutorial_button.callback = restart_tutorial_callback
+        
+        # Add button to view
+        view.add_item(tutorial_button)
+    
+    # Send dashboard with the view
     await interaction.response.send_message(
         f"**Your Dashboard**\n\n" +
         f"Current Balance: **{user.balance}** naira\n" +
@@ -2015,7 +2188,7 @@ async def dashboard(interaction: discord.Interaction):
         "• **Check Balance**: View your current balance and referral count\n" +
         f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
         "• **Set Bank Information**: Update your bank details for withdrawals",
-        view=create_user_dashboard_view(interaction.user.id),
+        view=view,
         ephemeral=False
     )
 
@@ -2115,7 +2288,71 @@ async def help_command(interaction: discord.Interaction):
     async def dashboard_callback(dashboard_interaction):
         user = get_user(dashboard_interaction.user.id)
         if user:
-            # User exists, show dashboard
+            # User exists, show dashboard with tutorial button
+            view = create_user_dashboard_view(dashboard_interaction.user.id)
+            
+            # Add tutorial button if tutorial is enabled
+            if TUTORIAL_ENABLED:
+                # Create tutorial button
+                tutorial_button = discord.ui.Button(
+                    style=discord.ButtonStyle.secondary,
+                    label="Start Tutorial",
+                    custom_id=f"restart_tutorial_{dashboard_interaction.user.id}"
+                )
+                
+                # Define callback for tutorial button
+                async def restart_tutorial_callback(tutorial_interaction: discord.Interaction):
+                    # Verify user
+                    if tutorial_interaction.user.id != dashboard_interaction.user.id:
+                        await tutorial_interaction.response.send_message(
+                            "This is not your dashboard.", 
+                            ephemeral=True
+                        )
+                        return
+                    
+                    try:
+                        # Reset tutorial progress
+                        update_tutorial_progress(dashboard_interaction.user.id, step=0, completed=False)
+                        
+                        # Get tutorial content for first step
+                        tutorial_step = 0
+                        tutorial_content = get_tutorial_content(tutorial_step)
+                        
+                        # Create message content
+                        message = f"# {tutorial_content['title']}\n\n{tutorial_content['content']}"
+                        
+                        # Create tutorial view
+                        tutorial_view = TutorialView(dashboard_interaction.user.id, tutorial_step)
+                        
+                        # Create animation frames
+                        frames = generate_tutorial_frames(message)
+                        
+                        # Send animated response
+                        await tutorial_interaction.response.defer()
+                        await send_animated_message(
+                            tutorial_interaction,
+                            frames,
+                            duration=1.5,
+                            final_frame=message
+                        )
+                        
+                        # Send view as a followup
+                        await tutorial_interaction.followup.send(view=tutorial_view)
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to restart tutorial for user {dashboard_interaction.user.id}: {e}")
+                        await tutorial_interaction.response.send_message(
+                            "An error occurred while starting the tutorial. Please try again.",
+                            ephemeral=True
+                        )
+                
+                # Set callback
+                tutorial_button.callback = restart_tutorial_callback
+                
+                # Add button to view
+                view.add_item(tutorial_button)
+            
+            # Send dashboard with the view
             await dashboard_interaction.response.send_message(
                 f"**Your Dashboard**\n\n" +
                 f"Current Balance: **{user.balance}** naira\n" +
@@ -2126,7 +2363,7 @@ async def help_command(interaction: discord.Interaction):
                 "• **Check Balance**: View your current balance and referral count\n" +
                 f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
                 "• **Set Bank Information**: Update your bank details for withdrawals",
-                view=create_user_dashboard_view(dashboard_interaction.user.id),
+                view=view,
                 ephemeral=False
             )
         else:
