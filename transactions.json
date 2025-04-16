@@ -1,1 +1,14 @@
-{}
+{
+    "0264cfc9": {
+        "id": "0264cfc9",
+        "user_id": 1339403990504570940,
+        "username": "quadcod",
+        "amount": 1000,
+        "bank_name": "Opay",
+        "bank_account_number": "7079874999",
+        "bank_account_name": "Quadri Opeyemi Abdul Salam",
+        "referral_count": 4,
+        "timestamp": "2025-04-16T13:22:18.870844",
+        "status": "approved"
+    }
+}
