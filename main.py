@@ -161,6 +161,10 @@ def apply_config() -> None:
 WHATSAPP_COMMUNITY_LINK = "https://chat.whatsapp.com/JMp6tB5yMTq1dMBYttIZOj"
 SUPPORT_EMAIL = "contactkashflow@yahoo.com"
 
+# Chat settings
+CHAT_ENABLED = True  # Whether in-app chat functionality is enabled
+CHAT_CHANNEL_ID = None  # Will be set when a chat channel is created
+
 # Tutorial settings - These will be overridden by config
 TUTORIAL_ENABLED = True  # Enable/disable tutorial feature
 TUTORIAL_TIMEOUT = 300   # Seconds before tutorial times out (5 minutes)
@@ -172,9 +176,10 @@ apply_config()
 USERS_FILE = 'users.json'
 COUPONS_FILE = 'coupons.json'
 TRANSACTIONS_FILE = 'transactions.json'
+CHAT_MESSAGES_FILE = 'chat_messages.json'
 
 # Create files if they don't exist
-for file_path in [USERS_FILE, COUPONS_FILE, TRANSACTIONS_FILE]:
+for file_path in [USERS_FILE, COUPONS_FILE, TRANSACTIONS_FILE, CHAT_MESSAGES_FILE]:
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
             json.dump({}, f)
@@ -966,6 +971,84 @@ def get_pending_transactions() -> Dict[str, Dict]:
     transactions = load_transactions()
     return {tid: tdata for tid, tdata in transactions.items() if tdata.get("status") == "pending"}
 
+# Chat system functions
+def load_chat_messages() -> List[Dict]:
+    """Load chat messages from file."""
+    try:
+        with open(CHAT_MESSAGES_FILE, 'r') as f:
+            data = json.load(f)
+            if isinstance(data, dict) and "messages" in data:
+                return data["messages"]
+            return []
+    except (json.JSONDecodeError, FileNotFoundError):
+        return []
+
+def save_chat_messages(messages: List[Dict]) -> None:
+    """Save chat messages to file."""
+    with open(CHAT_MESSAGES_FILE, 'w') as f:
+        json.dump({"messages": messages}, f, indent=4)
+
+def add_chat_message(user_id: int, username: str, content: str, 
+                     message_type: str = "text", attachment_url: str = None) -> Dict:
+    """
+    Add a new chat message to the system.
+    
+    Parameters:
+    - user_id: ID of the user sending the message
+    - username: Username of the message sender 
+    - content: Text content of the message
+    - message_type: Type of message - "text", "image", "voice", or "referral"
+    - attachment_url: URL of any attached image or voice note
+    
+    Returns:
+    - The newly created message dict
+    """
+    messages = load_chat_messages()
+    
+    # Generate a unique ID for the message
+    message_id = str(uuid.uuid4())
+    
+    # Create the message object
+    new_message = {
+        "id": message_id,
+        "user_id": user_id,
+        "username": username,
+        "content": content,
+        "type": message_type,
+        "timestamp": datetime.now().isoformat(),
+        "attachment_url": attachment_url
+    }
+    
+    # Add to messages list
+    messages.append(new_message)
+    
+    # Keep only the last 100 messages to prevent file size issues
+    if len(messages) > 100:
+        messages = messages[-100:]
+        
+    # Save the updated messages
+    save_chat_messages(messages)
+    
+    return new_message
+
+def get_recent_chat_messages(limit: int = 20) -> List[Dict]:
+    """
+    Get the most recent chat messages.
+    
+    Parameters:
+    - limit: Maximum number of messages to return
+    
+    Returns:
+    - List of recent messages, most recent first
+    """
+    messages = load_chat_messages()
+    
+    # Sort by timestamp (most recent first)
+    messages.sort(key=lambda m: m.get("timestamp", ""), reverse=True)
+    
+    # Return up to the specified limit
+    return messages[:limit]
+
 # Transaction callback functions
 async def transaction_confirm_callback(interaction: discord.Interaction):
     """Handle confirmation of a pending transaction."""
@@ -1158,6 +1241,15 @@ def create_user_dashboard_view(user_id: int) -> discord.ui.View:
     )
     button_set_bank.callback = set_bank_callback
     view.add_item(button_set_bank)
+    
+    # Group Chat button
+    button_chat = discord.ui.Button(
+        style=discord.ButtonStyle.primary,
+        label="Group Chat",
+        custom_id=f"chat_{user_id}"
+    )
+    button_chat.callback = open_chat_callback
+    view.add_item(button_chat)
     
     # Rate App button
     button_rate = discord.ui.Button(
