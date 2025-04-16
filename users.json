@@ -10,8 +10,8 @@
         "referral_count": 3,
         "created_at": "2025-04-14T19:42:53.826994",
         "tutorial_step": 0,
-        "tutorial_completed": false,
-        "tutorial_last_interaction": "2025-04-16T22:12:22.379277"
+        "tutorial_completed": true,
+        "tutorial_last_interaction": "2025-04-16T22:29:44.341205"
     },
     "1361453652161724628": {
         "id": 1361453652161724628,
