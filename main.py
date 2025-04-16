@@ -6,7 +6,7 @@ import logging
 import asyncio
 import uuid
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 # Discord imports
@@ -342,6 +342,48 @@ def calculate_total_balance() -> int:
     """Calculate the total balance of all users."""
     users = load_users()
     return sum(user.balance for user in users.values())
+    
+def get_active_user_count() -> int:
+    """
+    Count the number of active users based on recent activity.
+    
+    A user is considered active if they've interacted with the bot
+    within the ACTIVE_USER_DAYS timeframe.
+    
+    Returns:
+        The number of active users
+    """
+    users = load_users()
+    if not users:
+        return 0
+        
+    active_count = 0
+    current_time = datetime.now()
+    active_threshold = current_time - timedelta(days=ACTIVE_USER_DAYS)
+    
+    for user in users.values():
+        # Check if user has tutorial_last_interaction attribute and it's not None
+        if hasattr(user, 'tutorial_last_interaction') and user.tutorial_last_interaction:
+            try:
+                # Parse the last interaction time
+                last_interaction = datetime.fromisoformat(user.tutorial_last_interaction)
+                if last_interaction > active_threshold:
+                    active_count += 1
+                    continue
+            except (ValueError, TypeError):
+                # If there's an error parsing the date, fall back to creation date
+                pass
+                
+        # If no tutorial_last_interaction or parsing failed, use created_at date
+        try:
+            created_at = datetime.fromisoformat(user.created_at)
+            if created_at > active_threshold:
+                active_count += 1
+        except (ValueError, TypeError):
+            # If we can't parse the date, don't count this user as active
+            pass
+            
+    return active_count
 
 def create_bot_enable_view(interaction_user_id: int) -> Optional[discord.ui.View]:
     """
@@ -2716,9 +2758,11 @@ async def admin_view_balance_callback(interaction: discord.Interaction):
         
         total_balance = calculate_total_balance()
         users = load_users()
+        active_users = get_active_user_count()
         
         await interaction.response.send_message(
-            f"Total balance across all {len(users)} users: {total_balance} naira",
+            f"Total balance across all {len(users)} users: **₦{total_balance}**\n" +
+            f"Active users in the last {ACTIVE_USER_DAYS} days: **{active_users}**",
             ephemeral=True
         )
     except Exception as e:
