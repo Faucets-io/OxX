@@ -527,6 +527,20 @@ class RegisterModal(discord.ui.Modal):
             referrer.referral_count += 1
             users[referred_by] = referrer
             save_users(users)
+            
+            # Try to notify the referrer
+            try:
+                referrer_user = await bot.fetch_user(referred_by)
+                if referrer_user:
+                    await referrer_user.send(
+                        f"🎉 **REFERRAL BONUS RECEIVED!**\n\n" +
+                        f"You just earned {REFERRAL_BONUS} naira for referring {interaction.user.name}!\n" +
+                        f"Your new balance is {referrer.balance} naira.\n" +
+                        f"Your referral count is now {referrer.referral_count}.\n\n" +
+                        f"Keep sharing your referral ID to earn more!"
+                    )
+            except Exception as e:
+                logger.error(f"Failed to notify referrer about bonus: {e}")
         
         # Mark coupon as used
         mark_coupon_used(coupon_code)
