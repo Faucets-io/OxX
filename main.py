@@ -56,6 +56,7 @@ SYSTEM_ANNOUNCEMENTS = {"enabled": True, "message": "Welcome to KashFlow!"}  # S
 DEMO_MODE_ENABLED = True  # Whether demo mode is enabled for new users
 DEMO_BALANCE = 1500  # Demo balance to show in demo mode
 DEMO_REFERRALS = 6  # Demo referral count to show in demo mode
+ACTIVE_USER_DAYS = 30  # Number of days to consider a user active
 
 # Bot status control
 BOT_ENABLED_FOR_USERS = True  # Bot status flag
@@ -439,6 +440,34 @@ def submit_user_rating(user_id: int, rating: int, comment: str = "") -> bool:
         return True
     except Exception as e:
         logger.error(f"Error submitting rating: {e}")
+        return False
+
+def remove_user_rating(user_id: int) -> bool:
+    """
+    Remove a user's rating completely.
+    
+    Parameters:
+    - user_id: The ID of the user whose rating should be removed
+    
+    Returns:
+    - Boolean indicating success or failure
+    """
+    try:
+        # Get user
+        user = get_user(user_id)
+        if not user:
+            return False
+            
+        # Remove rating
+        user.rating = None
+        user.rating_comment = ""
+        user.rating_approved = False
+        
+        # Save changes
+        add_user(user)
+        return True
+    except Exception as e:
+        logger.error(f"Error removing rating: {e}")
         return False
 
 def approve_user_rating(user_id: int) -> bool:
@@ -2204,7 +2233,14 @@ async def admin_view_pending_ratings_callback(interaction: discord.Interaction):
                 custom_id=f"approve_rating_{user.id}"
             )
             
-            # We need a unique callback for each button
+            # Add remove button for this rating
+            remove_button = discord.ui.Button(
+                style=discord.ButtonStyle.danger,
+                label=f"Remove #{i}",
+                custom_id=f"remove_rating_{user.id}"
+            )
+            
+            # We need a unique callback for each approve button
             async def make_approve_callback(user_id=user.id):
                 async def callback(button_interaction: discord.Interaction):
                     if not is_admin(button_interaction.user.id):
@@ -2228,6 +2264,31 @@ async def admin_view_pending_ratings_callback(interaction: discord.Interaction):
             
             approve_button.callback = await make_approve_callback()
             view.add_item(approve_button)
+            
+            # We need a unique callback for each remove button
+            async def make_remove_callback(user_id=user.id):
+                async def callback(button_interaction: discord.Interaction):
+                    if not is_admin(button_interaction.user.id):
+                        await button_interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+                        return
+                    
+                    # Remove the rating
+                    success = remove_user_rating(user_id)
+                    
+                    if success:
+                        await button_interaction.response.send_message(
+                            f"Rating from user ID {user_id} has been removed.",
+                            ephemeral=True
+                        )
+                    else:
+                        await button_interaction.response.send_message(
+                            "Error removing rating. The user may no longer exist.",
+                            ephemeral=True
+                        )
+                return callback
+            
+            remove_button.callback = await make_remove_callback()
+            view.add_item(remove_button)
         
         # Add a refresh button
         refresh_button = discord.ui.Button(
