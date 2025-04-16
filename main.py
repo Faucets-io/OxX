@@ -230,107 +230,133 @@ def update_transaction_status(transaction_id: str, status: str) -> None:
 # Transaction callback functions
 async def transaction_confirm_callback(interaction: discord.Interaction):
     """Handle confirmation of a pending transaction."""
-    # Verify admin permissions
-    if interaction.user.id != PRIMARY_ADMIN_ID:
-        await interaction.response.send_message("Only the primary admin can confirm transactions.", ephemeral=True)
-        return
-    
-    # Extract transaction ID from custom_id
-    custom_id = interaction.data["custom_id"]
-    transaction_id = custom_id.split("_")[-1]
-    
-    # Get transaction data
-    transaction = get_transaction(transaction_id)
-    if not transaction:
-        await interaction.response.send_message("Transaction not found.", ephemeral=True)
-        return
-    
-    # Update transaction status
-    if transaction["status"] != "pending":
-        await interaction.response.send_message(f"Transaction is already {transaction['status']}.", ephemeral=True)
-        return
-    
-    # Update transaction status
-    update_transaction_status(transaction_id, "completed")
-    
-    # Get timestamp for confirmation
-    confirmation_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Respond to admin
-    await interaction.response.send_message(
-        f"✅ Transaction **{transaction_id}** confirmed!\n\n" +
-        f"Amount: {transaction['amount']} naira\n" +
-        f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
-        f"Bank: {transaction['bank_name']}\n" +
-        f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
-        f"Confirmation Time: {confirmation_time}",
-        ephemeral=True
-    )
-    
-    # Try to notify the user
     try:
-        user = await bot.fetch_user(int(transaction["user_id"]))
-        if user:
-            await user.send(
-                f"✅ Your withdrawal of {transaction['amount']} naira has been processed and sent to your bank account!\n\n" +
-                f"Transaction ID: {transaction_id}\n" +
-                f"Bank: {transaction['bank_name']}\n" +
-                f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
-                f"Confirmation Time: {confirmation_time}\n\n" +
-                f"Thank you for using KashFlow! You can register again with a new coupon code."
-            )
+        # Verify admin permissions
+        if interaction.user.id != PRIMARY_ADMIN_ID:
+            await interaction.response.send_message("Only the primary admin can confirm transactions.", ephemeral=True)
+            return
+        
+        # Extract transaction ID from custom_id
+        custom_id = interaction.data["custom_id"]
+        transaction_id = custom_id.split("_")[-1]
+        
+        # Get transaction data
+        transaction = get_transaction(transaction_id)
+        if not transaction:
+            await interaction.response.send_message("Transaction not found.", ephemeral=True)
+            return
+        
+        # Update transaction status
+        if transaction["status"] != "pending":
+            await interaction.response.send_message(f"Transaction is already {transaction['status']}.", ephemeral=True)
+            return
+        
+        # Update transaction status
+        update_transaction_status(transaction_id, "completed")
+        
+        # Get timestamp for confirmation
+        confirmation_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Respond to admin
+        await interaction.response.send_message(
+            f"✅ Transaction **{transaction_id}** confirmed!\n\n" +
+            f"Amount: {transaction['amount']} naira\n" +
+            f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
+            f"Bank: {transaction['bank_name']}\n" +
+            f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
+            f"Confirmation Time: {confirmation_time}",
+            ephemeral=True
+        )
+        
+        # Try to notify the user
+        try:
+            user = await bot.fetch_user(int(transaction["user_id"]))
+            if user:
+                await user.send(
+                    f"✅ Your withdrawal of {transaction['amount']} naira has been processed and sent to your bank account!\n\n" +
+                    f"Transaction ID: {transaction_id}\n" +
+                    f"Bank: {transaction['bank_name']}\n" +
+                    f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
+                    f"Confirmation Time: {confirmation_time}\n\n" +
+                    f"Thank you for using KashFlow! You can register again with a new coupon code."
+                )
+        except Exception as e:
+            logger.error(f"Failed to notify user about transaction confirmation: {e}")
     except Exception as e:
-        logger.error(f"Failed to notify user about transaction confirmation: {e}")
+        logger.error(f"Error in transaction_confirm_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 async def transaction_decline_callback(interaction: discord.Interaction):
     """Handle declining of a pending transaction."""
-    # Verify admin permissions
-    if interaction.user.id != PRIMARY_ADMIN_ID:
-        await interaction.response.send_message("Only the primary admin can decline transactions.", ephemeral=True)
-        return
-    
-    # Extract transaction ID from custom_id
-    custom_id = interaction.data["custom_id"]
-    transaction_id = custom_id.split("_")[-1]
-    
-    # Get transaction data
-    transaction = get_transaction(transaction_id)
-    if not transaction:
-        await interaction.response.send_message("Transaction not found.", ephemeral=True)
-        return
-    
-    # Check if transaction is still pending
-    if transaction["status"] != "pending":
-        await interaction.response.send_message(f"Transaction is already {transaction['status']}.", ephemeral=True)
-        return
-    
-    # Update transaction status
-    update_transaction_status(transaction_id, "declined")
-    
-    # Get timestamp for decline
-    decline_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Respond to admin
-    await interaction.response.send_message(
-        f"❌ Transaction **{transaction_id}** declined.\n\n" +
-        f"Amount: {transaction['amount']} naira\n" +
-        f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
-        f"Decline Time: {decline_time}",
-        ephemeral=True
-    )
-    
-    # Try to notify the user
     try:
-        user = await bot.fetch_user(int(transaction["user_id"]))
-        if user:
-            await user.send(
-                f"❌ Your withdrawal of {transaction['amount']} naira has been declined.\n\n" +
-                f"Transaction ID: {transaction_id}\n" +
-                f"Decline Time: {decline_time}\n\n" +
-                f"Please contact an admin for more information."
-            )
+        # Verify admin permissions
+        if interaction.user.id != PRIMARY_ADMIN_ID:
+            await interaction.response.send_message("Only the primary admin can decline transactions.", ephemeral=True)
+            return
+        
+        # Extract transaction ID from custom_id
+        custom_id = interaction.data["custom_id"]
+        transaction_id = custom_id.split("_")[-1]
+        
+        # Get transaction data
+        transaction = get_transaction(transaction_id)
+        if not transaction:
+            await interaction.response.send_message("Transaction not found.", ephemeral=True)
+            return
+        
+        # Check if transaction is still pending
+        if transaction["status"] != "pending":
+            await interaction.response.send_message(f"Transaction is already {transaction['status']}.", ephemeral=True)
+            return
+        
+        # Update transaction status
+        update_transaction_status(transaction_id, "declined")
+        
+        # Get timestamp for decline
+        decline_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Respond to admin
+        await interaction.response.send_message(
+            f"❌ Transaction **{transaction_id}** declined.\n\n" +
+            f"Amount: {transaction['amount']} naira\n" +
+            f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
+            f"Decline Time: {decline_time}",
+            ephemeral=True
+        )
+        
+        # Try to notify the user
+        try:
+            user = await bot.fetch_user(int(transaction["user_id"]))
+            if user:
+                await user.send(
+                    f"❌ Your withdrawal of {transaction['amount']} naira has been declined.\n\n" +
+                    f"Transaction ID: {transaction_id}\n" +
+                    f"Decline Time: {decline_time}\n\n" +
+                    f"Please contact an admin for more information."
+                )
+        except Exception as e:
+            logger.error(f"Failed to notify user about transaction decline: {e}")
     except Exception as e:
-        logger.error(f"Failed to notify user about transaction decline: {e}")
+        logger.error(f"Error in transaction_decline_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 # UI Components
 def create_user_dashboard_view(user_id: int) -> discord.ui.View:
@@ -721,42 +747,56 @@ async def check_balance_callback(interaction: discord.Interaction):
                     pass
 
 async def withdraw_callback(interaction: discord.Interaction):
-    custom_id = interaction.data["custom_id"]
-    user_id = int(custom_id.split("_")[-1])
-    
-    if interaction.user.id != user_id:
-        await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
-        return
-    
-    user = get_user(user_id)
-    if not user:
-        await interaction.response.send_message("User not found.", ephemeral=True)
-        return
-    
-    # Check if user has minimum required referrals
-    if user.referral_count < MINIMUM_REFERRALS:
-        await interaction.response.send_message(
-            f"You need at least {MINIMUM_REFERRALS} referrals to withdraw. " +
-            f"Your current referral count is {user.referral_count}.",
-            ephemeral=True
-        )
-        return
-    
-    # Check if user is eligible for withdrawal based on balance
-    if user.balance < WITHDRAWAL_THRESHOLD:
-        await interaction.response.send_message(
-            f"You need at least {WITHDRAWAL_THRESHOLD} naira to withdraw. " +
-            f"Your current balance is {user.balance} naira.",
-            ephemeral=True
-        )
-        return
-    
-    # Check if bank information is set
-    if not user.bank_name or not user.bank_account_number or not user.bank_account_name:
-        await interaction.response.send_message(
-            "Please set your bank information before withdrawing.",
-            ephemeral=True
-        )
+    try:
+        custom_id = interaction.data["custom_id"]
+        user_id = int(custom_id.split("_")[-1])
+        
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
+            return
+        
+        user = get_user(user_id)
+        if not user:
+            await interaction.response.send_message("User not found.", ephemeral=True)
+            return
+        
+        # Check if user has minimum required referrals
+        if user.referral_count < MINIMUM_REFERRALS:
+            await interaction.response.send_message(
+                f"You need at least {MINIMUM_REFERRALS} referrals to withdraw. " +
+                f"Your current referral count is {user.referral_count}.",
+                ephemeral=True
+            )
+            return
+        
+        # Check if user is eligible for withdrawal based on balance
+        if user.balance < WITHDRAWAL_THRESHOLD:
+            await interaction.response.send_message(
+                f"You need at least {WITHDRAWAL_THRESHOLD} naira to withdraw. " +
+                f"Your current balance is {user.balance} naira.",
+                ephemeral=True
+            )
+            return
+        
+        # Check if bank information is set
+        if not user.bank_name or not user.bank_account_number or not user.bank_account_name:
+            await interaction.response.send_message(
+                "Please set your bank information before withdrawing.",
+                ephemeral=True
+            )
+            return
+    except Exception as e:
+        logger.error(f"Error in withdraw_callback initial checks: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
         return
     
     # Create a transaction record before deleting user
@@ -825,21 +865,34 @@ async def withdraw_callback(interaction: discord.Interaction):
     )
 
 async def set_bank_callback(interaction: discord.Interaction):
-    custom_id = interaction.data["custom_id"]
-    user_id = int(custom_id.split("_")[-1])
-    
-    if interaction.user.id != user_id:
-        await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
-        return
-    
-    user = get_user(user_id)
-    if not user:
-        await interaction.response.send_message("User not found.", ephemeral=True)
-        return
-    
-    # Show bank info modal
-    bank_modal = BankInfoModal(user_id=user_id)
-    await interaction.response.send_modal(bank_modal)
+    try:
+        custom_id = interaction.data["custom_id"]
+        user_id = int(custom_id.split("_")[-1])
+        
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
+            return
+        
+        user = get_user(user_id)
+        if not user:
+            await interaction.response.send_message("User not found.", ephemeral=True)
+            return
+        
+        # Show bank info modal
+        bank_modal = BankInfoModal(user_id=user_id)
+        await interaction.response.send_modal(bank_modal)
+    except Exception as e:
+        logger.error(f"Error in set_bank_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 # Helper function to check if a user is an admin
 def is_admin(user_id: int) -> bool:
@@ -847,15 +900,28 @@ def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS or user_id == PRIMARY_ADMIN_ID
 
 async def admin_start_callback(interaction: discord.Interaction):
-    if not is_admin(interaction.user.id):
-        await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
-        return
-    
-    await interaction.response.send_message(
-        "Admin Dashboard",
-        view=create_admin_dashboard_view(),
-        ephemeral=True
-    )
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        await interaction.response.send_message(
+            "Admin Dashboard",
+            view=create_admin_dashboard_view(),
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_start_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 async def admin_view_users_callback(interaction: discord.Interaction):
     if not is_admin(interaction.user.id):
