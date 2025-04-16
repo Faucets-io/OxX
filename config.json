@@ -1,0 +1,19 @@
+{
+    "welcome_bonus": 200,
+    "referral_bonus": 200,
+    "withdrawal_threshold": 1000,
+    "minimum_referrals": 4,
+    "tutorial_enabled": true,
+    "tutorial_timeout": 900,
+    "auto_approve_withdrawals": false,
+    "admin_notification_channel_id": null,
+    "max_withdrawal_daily": 5000,
+    "payment_methods": {
+        "bank_transfer": true,
+        "mobile_money": false
+    },
+    "system_announcements": {
+        "enabled": true,
+        "message": "Welcome to KashFlow!"
+    }
+}

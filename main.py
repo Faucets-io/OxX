@@ -39,23 +39,121 @@ except ValueError:
 ADMIN_ID = PRIMARY_ADMIN_ID
 
 # Constants
+CONFIG_FILE = "config.json"
+COUPON_LENGTH = 12  # Length of coupon code
+
+# Default values (will be overridden by config.json)
 WELCOME_BONUS = 200  # Welcome bonus in Naira
 REFERRAL_BONUS = 200  # Referral bonus in Naira
 WITHDRAWAL_THRESHOLD = 1000  # Minimum balance required for withdrawal
 MINIMUM_REFERRALS = 4  # Minimum number of referrals required for withdrawal
 COUPON_PRICE = 500  # Price of coupon in Naira
-COUPON_LENGTH = 12  # Length of coupon code
+AUTO_APPROVE_WITHDRAWALS = False  # Whether to auto-approve withdrawals
+ADMIN_NOTIFICATION_CHANNEL_ID = None  # Channel ID for admin notifications
+MAX_WITHDRAWAL_DAILY = 5000  # Maximum daily withdrawal amount
+PAYMENT_METHODS = {"bank_transfer": True, "mobile_money": False}  # Available payment methods
+SYSTEM_ANNOUNCEMENTS = {"enabled": True, "message": "Welcome to KashFlow!"}  # System announcements
 
 # Bot status control
 BOT_ENABLED_FOR_USERS = True  # Bot status flag
 
-# Contact information
+# Configuration management functions
+def load_config() -> Dict:
+    """Load configuration from config.json file."""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        else:
+            # If config file doesn't exist, create it with default values
+            config = {
+                "welcome_bonus": WELCOME_BONUS,
+                "referral_bonus": REFERRAL_BONUS,
+                "withdrawal_threshold": WITHDRAWAL_THRESHOLD,
+                "minimum_referrals": MINIMUM_REFERRALS,
+                "tutorial_enabled": TUTORIAL_ENABLED,
+                "tutorial_timeout": TUTORIAL_TIMEOUT,
+                "auto_approve_withdrawals": AUTO_APPROVE_WITHDRAWALS,
+                "admin_notification_channel_id": ADMIN_NOTIFICATION_CHANNEL_ID,
+                "max_withdrawal_daily": MAX_WITHDRAWAL_DAILY,
+                "payment_methods": PAYMENT_METHODS,
+                "system_announcements": SYSTEM_ANNOUNCEMENTS,
+                "coupon_price": COUPON_PRICE
+            }
+            save_config(config)
+            return config
+    except Exception as e:
+        logger.error(f"Error loading config: {e}")
+        return {}
+
+def save_config(config: Dict) -> bool:
+    """Save configuration to config.json file."""
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=4)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving config: {e}")
+        return False
+
+def update_config(key: str, value) -> bool:
+    """Update a specific configuration value."""
+    try:
+        config = load_config()
+        
+        # Handle nested keys with dot notation (e.g., "payment_methods.bank_transfer")
+        if "." in key:
+            parts = key.split(".")
+            current = config
+            for i, part in enumerate(parts):
+                if i == len(parts) - 1:
+                    current[part] = value
+                else:
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
+        else:
+            config[key] = value
+            
+        return save_config(config)
+    except Exception as e:
+        logger.error(f"Error updating config: {e}")
+        return False
+
+def apply_config() -> None:
+    """Apply configuration values from config.json to global variables."""
+    global WELCOME_BONUS, REFERRAL_BONUS, WITHDRAWAL_THRESHOLD, MINIMUM_REFERRALS
+    global TUTORIAL_ENABLED, TUTORIAL_TIMEOUT, AUTO_APPROVE_WITHDRAWALS
+    global ADMIN_NOTIFICATION_CHANNEL_ID, MAX_WITHDRAWAL_DAILY
+    global PAYMENT_METHODS, SYSTEM_ANNOUNCEMENTS, COUPON_PRICE
+    
+    config = load_config()
+    if config:
+        WELCOME_BONUS = config.get("welcome_bonus", WELCOME_BONUS)
+        REFERRAL_BONUS = config.get("referral_bonus", REFERRAL_BONUS)
+        WITHDRAWAL_THRESHOLD = config.get("withdrawal_threshold", WITHDRAWAL_THRESHOLD)
+        MINIMUM_REFERRALS = config.get("minimum_referrals", MINIMUM_REFERRALS)
+        TUTORIAL_ENABLED = config.get("tutorial_enabled", TUTORIAL_ENABLED)
+        TUTORIAL_TIMEOUT = config.get("tutorial_timeout", TUTORIAL_TIMEOUT)
+        AUTO_APPROVE_WITHDRAWALS = config.get("auto_approve_withdrawals", AUTO_APPROVE_WITHDRAWALS)
+        ADMIN_NOTIFICATION_CHANNEL_ID = config.get("admin_notification_channel_id", ADMIN_NOTIFICATION_CHANNEL_ID)
+        MAX_WITHDRAWAL_DAILY = config.get("max_withdrawal_daily", MAX_WITHDRAWAL_DAILY)
+        PAYMENT_METHODS = config.get("payment_methods", PAYMENT_METHODS)
+        SYSTEM_ANNOUNCEMENTS = config.get("system_announcements", SYSTEM_ANNOUNCEMENTS)
+        COUPON_PRICE = config.get("coupon_price", COUPON_PRICE)
+        
+        logger.info(f"Configuration loaded: Welcome bonus={WELCOME_BONUS}, Referral bonus={REFERRAL_BONUS}")
+
+# Contact information - These are not part of the dynamic config
 WHATSAPP_COMMUNITY_LINK = "https://chat.whatsapp.com/JMp6tB5yMTq1dMBYttIZOj"
 SUPPORT_EMAIL = "contactkashflow@yahoo.com"
 
-# Tutorial settings
+# Tutorial settings - These will be overridden by config
 TUTORIAL_ENABLED = True  # Enable/disable tutorial feature
 TUTORIAL_TIMEOUT = 300   # Seconds before tutorial times out (5 minutes)
+
+# Apply configuration after all defaults are defined
+apply_config()
 
 # File paths
 USERS_FILE = 'users.json'
@@ -702,6 +800,169 @@ def create_user_dashboard_view(user_id: int) -> discord.ui.View:
     
     return view
 
+async def admin_config_callback(interaction: discord.Interaction):
+    """Handle showing the configuration options."""
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        # Load the current configuration
+        config = load_config()
+        
+        # Create a view with buttons for each configurable setting
+        view = discord.ui.View(timeout=None)
+        
+        # Add buttons for common settings
+        common_settings = [
+            ("welcome_bonus", "Welcome Bonus"),
+            ("referral_bonus", "Referral Bonus"),
+            ("withdrawal_threshold", "Withdrawal Threshold"),
+            ("minimum_referrals", "Minimum Referrals"),
+            ("coupon_price", "Coupon Price"),
+            ("tutorial_enabled", "Tutorial Enabled")
+        ]
+        
+        for setting_key, label in common_settings:
+            button = discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label=label,
+                custom_id=f"config_{setting_key}"
+            )
+            
+            # We need to create a unique callback for each button
+            async def make_callback(setting_key=setting_key):
+                async def callback(button_interaction: discord.Interaction):
+                    if not is_admin(button_interaction.user.id):
+                        await button_interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+                        return
+                    
+                    # Get current value
+                    current_value = config.get(setting_key, globals().get(setting_key.upper(), None))
+                    
+                    # Show modal to edit the setting
+                    modal = ConfigSettingsModal(setting_key, current_value)
+                    await button_interaction.response.send_modal(modal)
+                
+                return callback
+            
+            button.callback = await make_callback()
+            view.add_item(button)
+        
+        # Add Advanced Settings button
+        advanced_button = discord.ui.Button(
+            style=discord.ButtonStyle.primary,
+            label="Advanced Settings",
+            custom_id="config_advanced"
+        )
+        
+        async def advanced_callback(adv_interaction: discord.Interaction):
+            if not is_admin(adv_interaction.user.id):
+                await adv_interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+                return
+            
+            # Show dropdown for advanced settings
+            options = [
+                discord.SelectOption(label="Tutorial Timeout", value="tutorial_timeout"),
+                discord.SelectOption(label="Auto-Approve Withdrawals", value="auto_approve_withdrawals"),
+                discord.SelectOption(label="Max Daily Withdrawal", value="max_withdrawal_daily"),
+                discord.SelectOption(label="System Announcements Enabled", value="system_announcements.enabled"),
+                discord.SelectOption(label="System Announcement Message", value="system_announcements.message")
+            ]
+            
+            # Create select menu
+            select = discord.ui.Select(
+                placeholder="Select a setting to configure",
+                options=options,
+                custom_id="advanced_setting_select"
+            )
+            
+            async def select_callback(select_interaction: discord.Interaction):
+                setting_key = select_interaction.data["values"][0]
+                
+                # Get the current value based on the key (handle nested keys)
+                if "." in setting_key:
+                    parts = setting_key.split(".")
+                    current = config
+                    for part in parts:
+                        if part in current:
+                            current = current[part]
+                        else:
+                            current = None
+                            break
+                    current_value = current
+                else:
+                    current_value = config.get(setting_key, globals().get(setting_key.upper(), None))
+                
+                # Show modal to edit the setting
+                modal = ConfigSettingsModal(setting_key, current_value)
+                await select_interaction.response.send_modal(modal)
+            
+            select.callback = select_callback
+            
+            # Create view with select menu
+            select_view = discord.ui.View(timeout=None)
+            select_view.add_item(select)
+            
+            await adv_interaction.response.send_message(
+                "Select an advanced setting to configure:",
+                view=select_view,
+                ephemeral=True
+            )
+        
+        advanced_button.callback = advanced_callback
+        view.add_item(advanced_button)
+        
+        # Add a button to export the current config
+        export_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary,
+            label="Export Configuration",
+            custom_id="config_export"
+        )
+        
+        async def export_callback(export_interaction: discord.Interaction):
+            if not is_admin(export_interaction.user.id):
+                await export_interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+                return
+            
+            # Format the configuration for display
+            config_formatted = json.dumps(config, indent=2)
+            
+            # If the config is too long, send as a file
+            if len(config_formatted) > 1900:
+                file = discord.File(
+                    fp=io.StringIO(config_formatted),
+                    filename="config.json"
+                )
+                await export_interaction.response.send_message(
+                    "Current configuration:",
+                    file=file,
+                    ephemeral=True
+                )
+            else:
+                await export_interaction.response.send_message(
+                    f"Current configuration:```json\n{config_formatted}\n```",
+                    ephemeral=True
+                )
+        
+        export_button.callback = export_callback
+        view.add_item(export_button)
+        
+        # Send the view with configuration options
+        await interaction.response.send_message(
+            "**Bot Configuration**\n\n" +
+            "Select a setting to configure:",
+            view=view,
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_config_callback: {e}")
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                pass
+
 def create_admin_dashboard_view() -> discord.ui.View:
     """Create the dashboard view for admins."""
     view = discord.ui.View(timeout=None)
@@ -714,6 +975,15 @@ def create_admin_dashboard_view() -> discord.ui.View:
     )
     button_start.callback = admin_start_callback
     view.add_item(button_start)
+    
+    # Configuration button
+    button_config = discord.ui.Button(
+        style=discord.ButtonStyle.primary,
+        label="Configure Settings",
+        custom_id="admin_config"
+    )
+    button_config.callback = admin_config_callback
+    view.add_item(button_config)
     
     # View users button
     button_view_users = discord.ui.Button(
@@ -1221,6 +1491,158 @@ class BankInfoModal(discord.ui.Modal):
                 "An error occurred while saving your bank information. Please try again.",
                 ephemeral=True
             )
+
+class ConfigSettingsModal(discord.ui.Modal):
+    def __init__(self, setting_key: str, current_value, *args, **kwargs):
+        super().__init__(title=f"Configure {setting_key.replace('_', ' ').title()}", *args, **kwargs)
+        self.setting_key = setting_key
+        
+        # Get the display name and description based on the setting key
+        setting_info = {
+            "welcome_bonus": {
+                "label": "Welcome Bonus (naira)",
+                "placeholder": "Amount given to new users upon registration",
+                "type": "int"
+            },
+            "referral_bonus": {
+                "label": "Referral Bonus (naira)",
+                "placeholder": "Amount earned per successful referral",
+                "type": "int"
+            },
+            "withdrawal_threshold": {
+                "label": "Withdrawal Threshold (naira)",
+                "placeholder": "Minimum balance required to withdraw",
+                "type": "int"
+            },
+            "minimum_referrals": {
+                "label": "Minimum Referrals",
+                "placeholder": "Minimum referrals needed to withdraw",
+                "type": "int"
+            },
+            "tutorial_enabled": {
+                "label": "Tutorial Enabled (true/false)",
+                "placeholder": "Whether the tutorial feature is enabled",
+                "type": "bool"
+            },
+            "tutorial_timeout": {
+                "label": "Tutorial Timeout (seconds)",
+                "placeholder": "How long before tutorial times out",
+                "type": "int"
+            },
+            "auto_approve_withdrawals": {
+                "label": "Auto-Approve Withdrawals (true/false)",
+                "placeholder": "Whether to automatically approve withdrawals",
+                "type": "bool"
+            },
+            "max_withdrawal_daily": {
+                "label": "Max Daily Withdrawal (naira)",
+                "placeholder": "Maximum daily withdrawal amount",
+                "type": "int"
+            },
+            "coupon_price": {
+                "label": "Coupon Price (naira)",
+                "placeholder": "Price of each coupon code",
+                "type": "int"
+            },
+            "system_announcements.message": {
+                "label": "System Announcement Message",
+                "placeholder": "Message to show to users",
+                "type": "str"
+            },
+            "system_announcements.enabled": {
+                "label": "System Announcements Enabled (true/false)",
+                "placeholder": "Whether to show system announcements",
+                "type": "bool"
+            }
+        }
+        
+        # Get the info for this setting
+        info = setting_info.get(setting_key, {
+            "label": setting_key.replace("_", " ").title(),
+            "placeholder": "Enter the new value",
+            "type": "str"
+        })
+        
+        # Convert current value to string
+        str_value = str(current_value).lower() if info["type"] == "bool" else str(current_value)
+        
+        # Add the text input
+        self.add_item(discord.ui.TextInput(
+            label=info["label"],
+            placeholder=info["placeholder"],
+            required=True,
+            default=str_value,
+            custom_id="value"
+        ))
+        
+        # Store the value type
+        self.value_type = info["type"]
+        
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Only allow admins to change settings
+            if not is_admin(interaction.user.id):
+                await interaction.response.send_message(
+                    "You are not authorized to change system settings.",
+                    ephemeral=True
+                )
+                return
+            
+            # Get the new value
+            new_value_str = self.children[0].value.strip()
+            
+            # Convert to the appropriate type
+            if self.value_type == "int":
+                try:
+                    new_value = int(new_value_str)
+                except ValueError:
+                    await interaction.response.send_message(
+                        "Invalid value. Please enter a valid integer.",
+                        ephemeral=True
+                    )
+                    return
+            elif self.value_type == "bool":
+                new_value_lower = new_value_str.lower()
+                if new_value_lower in ("true", "yes", "1", "on"):
+                    new_value = True
+                elif new_value_lower in ("false", "no", "0", "off"):
+                    new_value = False
+                else:
+                    await interaction.response.send_message(
+                        "Invalid value. Please enter 'true' or 'false'.",
+                        ephemeral=True
+                    )
+                    return
+            else:
+                new_value = new_value_str
+                
+            # Update the configuration
+            success = update_config(self.setting_key, new_value)
+            
+            if success:
+                # Apply the new configuration
+                apply_config()
+                
+                # Show success message
+                await interaction.response.send_message(
+                    f"✅ Successfully updated `{self.setting_key}` to `{new_value}`.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    f"❌ Failed to update setting. Please try again.",
+                    ephemeral=True
+                )
+        except Exception as e:
+            logger.error(f"Error in ConfigSettingsModal.on_submit: {e}")
+            if not interaction.response.is_done():
+                try:
+                    await interaction.response.send_message(
+                        "Something went wrong. Please try again.",
+                        ephemeral=True
+                    )
+                except:
+                    pass
 
 class GenerateCouponsModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs):
