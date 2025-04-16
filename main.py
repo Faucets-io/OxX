@@ -78,7 +78,8 @@ def load_config() -> Dict:
                 "max_withdrawal_daily": MAX_WITHDRAWAL_DAILY,
                 "payment_methods": PAYMENT_METHODS,
                 "system_announcements": SYSTEM_ANNOUNCEMENTS,
-                "coupon_price": COUPON_PRICE
+                "coupon_price": COUPON_PRICE,
+                "bot_enabled_for_users": BOT_ENABLED_FOR_USERS
             }
             save_config(config)
             return config
@@ -126,6 +127,7 @@ def apply_config() -> None:
     global TUTORIAL_ENABLED, TUTORIAL_TIMEOUT, AUTO_APPROVE_WITHDRAWALS
     global ADMIN_NOTIFICATION_CHANNEL_ID, MAX_WITHDRAWAL_DAILY
     global PAYMENT_METHODS, SYSTEM_ANNOUNCEMENTS, COUPON_PRICE
+    global BOT_ENABLED_FOR_USERS
     
     config = load_config()
     if config:
@@ -141,6 +143,7 @@ def apply_config() -> None:
         PAYMENT_METHODS = config.get("payment_methods", PAYMENT_METHODS)
         SYSTEM_ANNOUNCEMENTS = config.get("system_announcements", SYSTEM_ANNOUNCEMENTS)
         COUPON_PRICE = config.get("coupon_price", COUPON_PRICE)
+        BOT_ENABLED_FOR_USERS = config.get("bot_enabled_for_users", BOT_ENABLED_FOR_USERS)
         
         logger.info(f"Configuration loaded: Welcome bonus={WELCOME_BONUS}, Referral bonus={REFERRAL_BONUS}")
 
