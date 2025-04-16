@@ -628,10 +628,10 @@ def generate_coins_animation(amount, message):
     
     frames = []
     for frame in base_frames:
-        frames.append(f"{frame}\n\n**{amount} naira**\n{message}")
+        frames.append(f"{frame}\n\n**₦{amount}**\n{message}")
     
     # Final frame with sparkles
-    frames.append(f"✨💰💰💰💰💰✨\n\n**{amount} naira**\n{message}")
+    frames.append(f"✨💰💰💰💰💰✨\n\n**₦{amount}**\n{message}")
     
     return frames
 
@@ -680,7 +680,7 @@ def get_tutorial_content(step: int) -> Dict:
         },
         1: {
             "title": "Step 1: Your Dashboard",
-            "content": f"This is your dashboard where you can see your current balance and referral count.\n\n• Current balance shows how much you've earned\n• You get **{WELCOME_BONUS}** naira when you register\n• Each referral earns you **{REFERRAL_BONUS}** naira\n• You need **{MINIMUM_REFERRALS}** referrals to withdraw",
+            "content": f"This is your dashboard where you can see your current balance and referral count.\n\n• Current balance shows how much you've earned\n• You get **₦{WELCOME_BONUS}** when you register\n• Each referral earns you **₦{REFERRAL_BONUS}**\n• You need **{MINIMUM_REFERRALS}** referrals to withdraw",
             "next_label": "Next Step",
             "back_label": "Previous"
         },
@@ -692,19 +692,19 @@ def get_tutorial_content(step: int) -> Dict:
         },
         3: {
             "title": "Step 3: Referring Friends",
-            "content": f"Time to earn some rewards! Here's how to refer friends:\n\n• Click \"Copy ID to Refer\" in your dashboard\n• Share your referral ID with friends\n• When they register using your ID, you get **{REFERRAL_BONUS}** naira\n• Each friend also gets **{WELCOME_BONUS}** naira as welcome bonus",
+            "content": f"Time to earn some rewards! Here's how to refer friends:\n\n• Click \"Copy ID to Refer\" in your dashboard\n• Share your referral ID with friends\n• When they register using your ID, you get **₦{REFERRAL_BONUS}**\n• Each friend also gets **₦{WELCOME_BONUS}** as welcome bonus",
             "next_label": "Next Step",
             "back_label": "Previous"
         },
         4: {
             "title": "Step 4: Withdrawing Funds",
-            "content": f"Ready to cash out? Here's how withdrawals work:\n\n• You need at least **{WITHDRAWAL_THRESHOLD}** naira balance\n• You must have at least **{MINIMUM_REFERRALS}** referrals\n• Click \"Withdraw\" in your dashboard\n• Funds will be sent to your registered bank account\n• An admin will process your request",
+            "content": f"Ready to cash out? Here's how withdrawals work:\n\n• You need at least **₦{WITHDRAWAL_THRESHOLD}** balance\n• You must have at least **{MINIMUM_REFERRALS}** referrals\n• Click \"Withdraw\" in your dashboard\n• Funds will be sent to your registered bank account\n• An admin will process your request",
             "next_label": "Next Step",
             "back_label": "Previous"
         },
         5: {
             "title": "Tutorial Complete!",
-            "content": f"Congratulations! You now know how to use KashFlow.\n\n• Remember to share your referral ID\n• Each referral = **{REFERRAL_BONUS}** naira\n• Need help? Use the /help command\n• Join our WhatsApp community: {WHATSAPP_COMMUNITY_LINK}\n\nGood luck and happy earning!",
+            "content": f"Congratulations! You now know how to use KashFlow.\n\n• Remember to share your referral ID\n• Each referral = **₦{REFERRAL_BONUS}**\n• Need help? Use the /help command\n• Join our WhatsApp community: {WHATSAPP_COMMUNITY_LINK}\n\nGood luck and happy earning!",
             "finish_label": "Finish Tutorial",
             "back_label": "Previous"
         }
@@ -732,7 +732,7 @@ def create_demo_dashboard_view() -> discord.ui.View:
         await interaction.response.send_message(
             f"**DEMO MODE**: In the real app, your referral ID ({demo_id}) would be copied to your clipboard.\n\n"
             f"You would share this ID with friends. When they register using your ID, "
-            f"you earn {REFERRAL_BONUS} naira for each referral!",
+            f"you earn ₦{REFERRAL_BONUS} for each referral!",
             ephemeral=True
         )
     
@@ -750,12 +750,12 @@ def create_demo_dashboard_view() -> discord.ui.View:
         # Show demo balance information
         demo_message = (
             f"**DEMO MODE**: This shows how your balance information would appear.\n\n"
-            f"Current Balance: **{DEMO_BALANCE}** naira\n"
+            f"Current Balance: **₦{DEMO_BALANCE}**\n"
             f"Referral Count: **{DEMO_REFERRALS}**\n"
-            f"Welcome Bonus: **{WELCOME_BONUS}** naira\n"
-            f"Referral Bonus: **{REFERRAL_BONUS}** naira per referral\n\n"
-            f"In this demo, you've earned {WELCOME_BONUS} naira as a welcome bonus and "
-            f"{DEMO_REFERRALS} × {REFERRAL_BONUS} = {DEMO_REFERRALS * REFERRAL_BONUS} naira from referrals."
+            f"Welcome Bonus: **₦{WELCOME_BONUS}**\n"
+            f"Referral Bonus: **₦{REFERRAL_BONUS}** per referral\n\n"
+            f"In this demo, you've earned ₦{WELCOME_BONUS} as a welcome bonus and "
+            f"{DEMO_REFERRALS} × ₦{REFERRAL_BONUS} = ₦{DEMO_REFERRALS * REFERRAL_BONUS} from referrals."
         )
         
         # Generate coin animation for demonstration
@@ -786,7 +786,7 @@ def create_demo_dashboard_view() -> discord.ui.View:
             await interaction.response.defer(ephemeral=True)
             success_message = (
                 f"**DEMO MODE**: Withdrawal demonstration\n\n"
-                f"You've met the withdrawal requirements with {DEMO_REFERRALS} referrals and {DEMO_BALANCE} naira balance.\n\n"
+                f"You've met the withdrawal requirements with {DEMO_REFERRALS} referrals and ₦{DEMO_BALANCE} balance.\n\n"
                 f"In the real app, you would enter your withdrawal amount and receive payment through your configured bank account."
             )
             frames = generate_success_animation(success_message)
@@ -1809,6 +1809,79 @@ class BankInfoModal(discord.ui.Modal):
                 ephemeral=True
             )
 
+class RatingModal(discord.ui.Modal):
+    def __init__(self, user_id: int, *args, **kwargs):
+        super().__init__(title="Rate KashFlow Bot", *args, **kwargs)
+        self.user_id = user_id
+        
+        # Rating dropdown (1-5 stars)
+        self.add_item(
+            discord.ui.TextInput(
+                label="Rating (1-5 stars)",
+                placeholder="Enter a number from 1 to 5",
+                custom_id="rating",
+                required=True,
+                min_length=1,
+                max_length=1
+            )
+        )
+        
+        # Comment field
+        self.add_item(
+            discord.ui.TextInput(
+                label="Comment (optional)",
+                placeholder="Share your thoughts about the app",
+                custom_id="comment",
+                required=False,
+                max_length=200,
+                style=discord.TextStyle.paragraph
+            )
+        )
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        # Verify it's the right user
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("You can only rate from your own dashboard.", ephemeral=True)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        # Get the rating and comment from the form
+        rating_str = self.children[0].value
+        comment = self.children[1].value
+        
+        try:
+            # Validate rating is 1-5
+            rating = int(rating_str)
+            if rating < 1 or rating > 5:
+                await interaction.followup.send("Rating must be between 1 and 5 stars.", ephemeral=True)
+                return
+                
+            # Submit the rating
+            success = submit_user_rating(self.user_id, rating, comment)
+            
+            if success:
+                # Generate stars for display
+                stars = generate_rating_stars(rating)
+                
+                # Show success message with animation
+                frames = generate_success_animation(f"Thank you for rating KashFlow! {stars}")
+                await send_animated_message(
+                    interaction,
+                    frames,
+                    duration=2.0,
+                    final_frame=f"# Rating Submitted! {stars}\n\nThank you for your feedback! Your rating has been submitted for review.\n\nOnce approved, it will appear in our top ratings showcase.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send("Failed to submit your rating. Please try again later.", ephemeral=True)
+                
+        except ValueError:
+            await interaction.followup.send("Please enter a valid number between 1 and 5 for your rating.", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error submitting rating: {e}")
+            await interaction.followup.send(f"An error occurred: {str(e)}", ephemeral=True)
+
 class ConfigSettingsModal(discord.ui.Modal):
     def __init__(self, setting_key: str, current_value, *args, **kwargs):
         super().__init__(title=f"Configure {setting_key.replace('_', ' ').title()}", *args, **kwargs)
@@ -2033,6 +2106,161 @@ class GenerateCouponsModal(discord.ui.Modal):
             )
 
 # Button Callbacks
+async def rate_app_callback(interaction: discord.Interaction):
+    """Handle user rating the application."""
+    try:
+        # Extract user ID from custom_id
+        custom_id = interaction.data["custom_id"]
+        user_id = int(custom_id.split("_")[-1])
+        
+        # Ensure the user is rating their own account
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("You can only rate from your own dashboard.", ephemeral=True)
+            return
+            
+        # Show rating modal
+        modal = RatingModal(user_id)
+        await interaction.response.send_modal(modal)
+        
+    except Exception as e:
+        logger.error(f"Error in rate_app_callback: {e}")
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
+async def view_top_ratings_callback(interaction: discord.Interaction):
+    """Handle showing top app ratings."""
+    try:
+        # Get top rated users
+        top_users = get_top_rated_users(limit=5)
+        
+        if not top_users:
+            await interaction.response.send_message(
+                "No ratings available yet. Be the first to rate our app!",
+                ephemeral=True
+            )
+            return
+            
+        # Create a formatted message with top ratings
+        message = "# ⭐ Top Ratings ⭐\n\n"
+        
+        for i, user in enumerate(top_users, 1):
+            stars = generate_rating_stars(user.rating)
+            comment = f'"{user.rating_comment}"' if user.rating_comment else "(No comment provided)"
+            message += f"**{i}. {user.username}**: {stars}\n{comment}\n\n"
+            
+        await interaction.response.send_message(message, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Error in view_top_ratings_callback: {e}")
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
+async def admin_view_pending_ratings_callback(interaction: discord.Interaction):
+    """Handle admin viewing and approving pending ratings."""
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+            
+        # Get pending ratings
+        pending_ratings = get_pending_ratings()
+        
+        if not pending_ratings:
+            await interaction.response.send_message(
+                "No pending ratings to approve.",
+                view=create_admin_dashboard_view(),
+                ephemeral=True
+            )
+            return
+            
+        # Create message and view for each pending rating
+        message = "# Pending Ratings\n\nThe following users have submitted ratings that need approval:\n\n"
+        
+        view = discord.ui.View(timeout=None)
+        
+        for i, user in enumerate(pending_ratings, 1):
+            stars = generate_rating_stars(user.rating)
+            comment = f'"{user.rating_comment}"' if user.rating_comment else "(No comment provided)"
+            message += f"**{i}. {user.username}**: {stars}\n{comment}\n\n"
+            
+            # Add approval button for this rating
+            approve_button = discord.ui.Button(
+                style=discord.ButtonStyle.success,
+                label=f"Approve #{i}",
+                custom_id=f"approve_rating_{user.id}"
+            )
+            
+            # We need a unique callback for each button
+            async def make_approve_callback(user_id=user.id):
+                async def callback(button_interaction: discord.Interaction):
+                    if not is_admin(button_interaction.user.id):
+                        await button_interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+                        return
+                    
+                    # Approve the rating
+                    success = approve_user_rating(user_id)
+                    
+                    if success:
+                        await button_interaction.response.send_message(
+                            f"Rating from user ID {user_id} has been approved and will now appear in top ratings.",
+                            ephemeral=True
+                        )
+                    else:
+                        await button_interaction.response.send_message(
+                            "Error approving rating. The user may no longer exist or the rating may have already been processed.",
+                            ephemeral=True
+                        )
+                return callback
+            
+            approve_button.callback = await make_approve_callback()
+            view.add_item(approve_button)
+        
+        # Add a refresh button
+        refresh_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary,
+            label="Refresh",
+            custom_id="refresh_pending_ratings"
+        )
+        refresh_button.callback = admin_view_pending_ratings_callback
+        view.add_item(refresh_button)
+        
+        # Add a back button
+        back_button = discord.ui.Button(
+            style=discord.ButtonStyle.primary,
+            label="Back to Admin Dashboard",
+            custom_id="back_to_admin"
+        )
+        back_button.callback = admin_start_callback
+        view.add_item(back_button)
+        
+        await interaction.response.send_message(message, view=view, ephemeral=True)
+        
+    except Exception as e:
+        logger.error(f"Error in admin_view_pending_ratings_callback: {e}")
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
+
 async def copy_id_callback(interaction: discord.Interaction):
     try:
         custom_id = interaction.data["custom_id"]
