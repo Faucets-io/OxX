@@ -1031,17 +1031,58 @@ def add_chat_message(user_id: int, username: str, content: str,
     
     return new_message
 
-def get_recent_chat_messages(limit: int = 20) -> List[Dict]:
+def clear_old_chat_messages():
     """
-    Get the most recent chat messages.
+    Delete all past chat messages to start fresh.
+    This function completely clears the chat history.
+    
+    Returns:
+    - Number of deleted messages
+    """
+    messages = load_chat_messages()
+    count = len(messages)
+    
+    # Clear all messages
+    save_chat_messages([])
+    
+    return count
+
+def get_recent_chat_messages(limit: int = 20, max_age_days: int = 3) -> List[Dict]:
+    """
+    Get the most recent chat messages, automatically filtering out old messages.
     
     Parameters:
     - limit: Maximum number of messages to return
+    - max_age_days: Maximum age of messages in days (messages older than this will be removed)
     
     Returns:
     - List of recent messages, most recent first
     """
     messages = load_chat_messages()
+    current_time = datetime.now()
+    
+    # Filter out messages older than max_age_days
+    if max_age_days > 0:
+        filtered_messages = []
+        removed_count = 0
+        
+        for msg in messages:
+            try:
+                msg_time = datetime.fromisoformat(msg.get("timestamp", ""))
+                age = (current_time - msg_time).days
+                
+                if age <= max_age_days:
+                    filtered_messages.append(msg)
+                else:
+                    removed_count += 1
+            except (ValueError, TypeError):
+                # If timestamp is invalid, keep the message
+                filtered_messages.append(msg)
+        
+        # If we removed any messages, update the file
+        if removed_count > 0:
+            save_chat_messages(filtered_messages)
+            messages = filtered_messages
     
     # Sort by timestamp (most recent first)
     messages.sort(key=lambda m: m.get("timestamp", ""), reverse=True)
