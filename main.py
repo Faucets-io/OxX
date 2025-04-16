@@ -583,6 +583,151 @@ def get_tutorial_content(step: int) -> Dict:
     return tutorial_steps.get(step, tutorial_steps[0])
 
 # Transaction management functions
+def create_demo_dashboard_view() -> discord.ui.View:
+    """Create a demonstration dashboard for potential users to see how the system works."""
+    view = discord.ui.View(timeout=None)
+    
+    # Create buttons with demonstration callbacks
+    
+    # Demo Copy referral ID button
+    demo_copy_button = discord.ui.Button(
+        style=discord.ButtonStyle.primary,
+        label="Copy ID to Refer (Demo)",
+        custom_id="demo_copy_id"
+    )
+    
+    async def demo_copy_callback(interaction: discord.Interaction):
+        # Generate a fake referral ID for demonstration
+        demo_id = str(interaction.user.id)
+        await interaction.response.send_message(
+            f"**DEMO MODE**: In the real app, your referral ID ({demo_id}) would be copied to your clipboard.\n\n"
+            f"You would share this ID with friends. When they register using your ID, "
+            f"you earn {REFERRAL_BONUS} naira for each referral!",
+            ephemeral=True
+        )
+    
+    demo_copy_button.callback = demo_copy_callback
+    view.add_item(demo_copy_button)
+    
+    # Demo Check balance button
+    demo_balance_button = discord.ui.Button(
+        style=discord.ButtonStyle.secondary,
+        label="Check Balance (Demo)",
+        custom_id="demo_check_balance"
+    )
+    
+    async def demo_balance_callback(interaction: discord.Interaction):
+        # Show demo balance information
+        demo_message = (
+            f"**DEMO MODE**: This shows how your balance information would appear.\n\n"
+            f"Current Balance: **{DEMO_BALANCE}** naira\n"
+            f"Referral Count: **{DEMO_REFERRALS}**\n"
+            f"Welcome Bonus: **{WELCOME_BONUS}** naira\n"
+            f"Referral Bonus: **{REFERRAL_BONUS}** naira per referral\n\n"
+            f"In this demo, you've earned {WELCOME_BONUS} naira as a welcome bonus and "
+            f"{DEMO_REFERRALS} × {REFERRAL_BONUS} = {DEMO_REFERRALS * REFERRAL_BONUS} naira from referrals."
+        )
+        
+        # Generate coin animation for demonstration
+        frames = generate_coins_animation(DEMO_BALANCE, "Checking your demo balance...")
+        await interaction.response.defer(ephemeral=True)
+        await send_animated_message(
+            interaction,
+            frames,
+            duration=2.0,
+            final_frame=demo_message,
+            ephemeral=True
+        )
+    
+    demo_balance_button.callback = demo_balance_callback
+    view.add_item(demo_balance_button)
+    
+    # Demo Withdraw button
+    demo_withdraw_button = discord.ui.Button(
+        style=discord.ButtonStyle.success,
+        label="Withdraw (Demo)",
+        custom_id="demo_withdraw"
+    )
+    
+    async def demo_withdraw_callback(interaction: discord.Interaction):
+        # Check if demo balance meets requirements
+        if DEMO_REFERRALS >= MINIMUM_REFERRALS and DEMO_BALANCE >= WITHDRAWAL_THRESHOLD:
+            # Show successful withdrawal message
+            await interaction.response.defer(ephemeral=True)
+            success_message = (
+                f"**DEMO MODE**: Withdrawal demonstration\n\n"
+                f"You've met the withdrawal requirements with {DEMO_REFERRALS} referrals and {DEMO_BALANCE} naira balance.\n\n"
+                f"In the real app, you would enter your withdrawal amount and receive payment through your configured bank account."
+            )
+            frames = generate_success_animation(success_message)
+            await send_animated_message(
+                interaction,
+                frames,
+                duration=2.0,
+                final_frame=success_message,
+                ephemeral=True
+            )
+        else:
+            # Show requirements not met message
+            requirements_message = (
+                f"**DEMO MODE**: Withdrawal requirements not met\n\n"
+                f"To withdraw, you need:\n"
+                f"• Minimum {MINIMUM_REFERRALS} referrals (you have {DEMO_REFERRALS} in this demo)\n"
+                f"• Minimum {WITHDRAWAL_THRESHOLD} naira balance (you have {DEMO_BALANCE} in this demo)\n\n"
+                f"In the real app, you would need to meet these requirements before withdrawing."
+            )
+            frames = generate_error_animation(requirements_message)
+            await interaction.response.defer(ephemeral=True)
+            await send_animated_message(
+                interaction,
+                frames,
+                duration=2.0,
+                final_frame=requirements_message,
+                ephemeral=True
+            )
+    
+    demo_withdraw_button.callback = demo_withdraw_callback
+    view.add_item(demo_withdraw_button)
+    
+    # Demo Set bank button
+    demo_bank_button = discord.ui.Button(
+        style=discord.ButtonStyle.secondary,
+        label="Set Bank Info (Demo)",
+        custom_id="demo_set_bank"
+    )
+    
+    async def demo_bank_callback(interaction: discord.Interaction):
+        # Show demo bank info modal message
+        await interaction.response.send_message(
+            f"**DEMO MODE**: In the real app, this would open a form where you can set your bank information for withdrawals.\n\n"
+            f"You would enter:\n"
+            f"• Bank Name\n"
+            f"• Account Number\n"
+            f"• Account Name\n\n"
+            f"This information is saved securely and used only for processing your withdrawal requests.",
+            ephemeral=True
+        )
+    
+    demo_bank_button.callback = demo_bank_callback
+    view.add_item(demo_bank_button)
+    
+    # Register button to exit demo mode
+    register_button = discord.ui.Button(
+        style=discord.ButtonStyle.danger,
+        label="Exit Demo & Register",
+        custom_id="exit_demo_register"
+    )
+    
+    async def register_callback(interaction: discord.Interaction):
+        # Show registration modal
+        register_modal = RegisterModal(title="Register")
+        await interaction.response.send_modal(register_modal)
+    
+    register_button.callback = register_callback
+    view.add_item(register_button)
+    
+    return view
+
 def load_transactions() -> Dict[str, Dict]:
     """Load transactions from file."""
     try:
@@ -2595,9 +2740,95 @@ async def start(interaction: discord.Interaction):
             ephemeral=False
         )
     else:
-        # Show registration modal
-        register_modal = RegisterModal(title="Register")
-        await interaction.response.send_modal(register_modal)
+        # Check if demo mode is enabled
+        if DEMO_MODE_ENABLED:
+            # Create demo options view
+            demo_view = discord.ui.View()
+            
+            # Try demo button
+            try_demo_button = discord.ui.Button(
+                style=discord.ButtonStyle.primary,
+                label="Try Demo Mode",
+                custom_id="try_demo_mode"
+            )
+            
+            async def try_demo_callback(demo_interaction: discord.Interaction):
+                # Check if it's the same user
+                if demo_interaction.user.id != interaction.user.id:
+                    await demo_interaction.response.send_message("This is not your demo.", ephemeral=True)
+                    return
+                
+                # Generate demo welcome message
+                demo_welcome_message = (
+                    f"# 🚀 Welcome to KashFlow Demo Mode! 🚀\n\n"
+                    f"**This is a demonstration of KashFlow's referral system.**\n\n"
+                    f"In this demo, you'll see how the app works with a simulated balance of **{DEMO_BALANCE}** naira "
+                    f"and **{DEMO_REFERRALS}** referrals.\n\n"
+                    f"• **Welcome Bonus**: {WELCOME_BONUS} naira when you register\n"
+                    f"• **Referral Bonus**: {REFERRAL_BONUS} naira for each person you refer\n"
+                    f"• **Withdrawal Threshold**: {WITHDRAWAL_THRESHOLD} naira minimum balance\n"
+                    f"• **Referral Requirement**: {MINIMUM_REFERRALS} referrals minimum\n\n"
+                    f"Try all the features below, and click 'Exit Demo & Register' when you're ready to create a real account!"
+                )
+                
+                # Create demo dashboard
+                demo_dashboard = create_demo_dashboard_view()
+                
+                # Send welcome message with animation
+                frames = generate_tutorial_frames(demo_welcome_message)
+                await demo_interaction.response.defer()
+                await send_animated_message(
+                    demo_interaction,
+                    frames,
+                    duration=2.0,
+                    final_frame=demo_welcome_message
+                )
+                
+                # Send dashboard buttons separately
+                await demo_interaction.followup.send(
+                    "**Demo Dashboard Controls**:",
+                    view=demo_dashboard,
+                    ephemeral=False
+                )
+            
+            try_demo_button.callback = try_demo_callback
+            demo_view.add_item(try_demo_button)
+            
+            # Register directly button
+            register_button = discord.ui.Button(
+                style=discord.ButtonStyle.success,
+                label="Register with Coupon",
+                custom_id="register_directly"
+            )
+            
+            async def register_callback(reg_interaction: discord.Interaction):
+                # Check if it's the same user
+                if reg_interaction.user.id != interaction.user.id:
+                    await reg_interaction.response.send_message("This is not your registration.", ephemeral=True)
+                    return
+                
+                # Show registration modal
+                register_modal = RegisterModal(title="Register")
+                await reg_interaction.response.send_modal(register_modal)
+            
+            register_button.callback = register_callback
+            demo_view.add_item(register_button)
+            
+            # Send options message
+            await interaction.response.send_message(
+                f"# Welcome to KashFlow! 👋\n\n"
+                f"KashFlow is a referral rewards system where you can earn naira by referring friends.\n\n"
+                f"• Get **{WELCOME_BONUS}** naira welcome bonus when you register\n"
+                f"• Earn **{REFERRAL_BONUS}** naira for each friend you refer\n"
+                f"• Withdraw when you reach **{WITHDRAWAL_THRESHOLD}** naira and **{MINIMUM_REFERRALS}** referrals\n\n"
+                f"You can try a demo of the system first, or register right away with a coupon code.",
+                view=demo_view,
+                ephemeral=False
+            )
+        else:
+            # Show registration modal (demo mode disabled)
+            register_modal = RegisterModal(title="Register")
+            await interaction.response.send_modal(register_modal)
 
 @bot.tree.command(name="dashboard", description="View your dashboard")
 async def dashboard(interaction: discord.Interaction):
