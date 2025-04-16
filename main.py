@@ -1917,9 +1917,9 @@ async def check_balance_callback(interaction: discord.Interaction):
             return
         
         await interaction.response.send_message(
-            f"Your current balance is: {user.balance} naira\n" +
+            f"Your current balance is: ₦{user.balance}\n" +
             f"Referral count: {user.referral_count} (need {MINIMUM_REFERRALS} to withdraw)\n" +
-            f"Withdrawal threshold: {WITHDRAWAL_THRESHOLD} naira",
+            f"Withdrawal threshold: ₦{WITHDRAWAL_THRESHOLD}",
             ephemeral=True
         )
     except Exception as e:
@@ -2928,9 +2928,9 @@ async def dashboard(interaction: discord.Interaction):
     # Send dashboard with the view
     await interaction.response.send_message(
         f"**Your Dashboard**\n\n" +
-        f"Current Balance: **{user.balance}** naira\n" +
+        f"Current Balance: **₦{user.balance}**\n" +
         f"Referral Count: **{user.referral_count}**\n" +
-        f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+        f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
         "**Dashboard Controls**:\n" +
         "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
         "• **Check Balance**: View your current balance and referral count\n" +
@@ -3013,9 +3013,9 @@ async def help_command(interaction: discord.Interaction):
         "# 📚 KashFlow Bot Help\n\n"
         "**KashFlow** is a referral rewards system where you can earn naira by referring new users.\n\n"
         "## 🤝 How It Works\n"
-        f"• Get **{WELCOME_BONUS}** naira as welcome bonus when you register\n"
-        f"• Earn **{REFERRAL_BONUS}** naira for each person you refer\n"
-        f"• Withdraw when you reach **{WITHDRAWAL_THRESHOLD}** naira and have **{MINIMUM_REFERRALS}** referrals\n\n"
+        f"• Get **₦{WELCOME_BONUS}** welcome bonus when you register\n"
+        f"• Earn **₦{REFERRAL_BONUS}** for each person you refer\n"
+        f"• Withdraw when you reach **₦{WITHDRAWAL_THRESHOLD}** and have **{MINIMUM_REFERRALS}** referrals\n\n"
         "## 📝 Commands\n"
         "• **/start** - Register or view your dashboard\n"
         "• **/dashboard** - Check your balance and referrals\n"
