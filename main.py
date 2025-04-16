@@ -785,8 +785,106 @@ async def withdraw_callback(interaction: discord.Interaction):
                 ephemeral=True
             )
             return
+            
+        # Validate PRIMARY_ADMIN_ID
+        if not PRIMARY_ADMIN_ID or PRIMARY_ADMIN_ID == 0:
+            logger.error("PRIMARY_ADMIN_ID is not properly configured")
+            await interaction.response.send_message(
+                "Withdrawal system is currently unavailable. Please try again later or contact support.",
+                ephemeral=True
+            )
+            return
+        
+        # Create a transaction record before user deletion
+        transaction_id = str(uuid.uuid4())[:8]  # Generate a short unique ID
+        transaction_data = {
+            "id": transaction_id,
+            "user_id": user.id,
+            "username": user.username,
+            "amount": user.balance,
+            "bank_name": user.bank_name,
+            "bank_account_number": user.bank_account_number,
+            "bank_account_name": user.bank_account_name,
+            "referral_count": user.referral_count,
+            "timestamp": datetime.now().isoformat(),
+            "status": "pending"
+        }
+        
+        # Save transaction record
+        save_transaction(transaction_id, transaction_data)
+        
+        # Create confirmation view with buttons
+        view = discord.ui.View(timeout=None)
+        
+        # Confirm button
+        confirm_button = discord.ui.Button(
+            style=discord.ButtonStyle.success,
+            label="Confirm Transaction",
+            custom_id=f"confirm_transaction_{transaction_id}"
+        )
+        confirm_button.callback = transaction_confirm_callback
+        view.add_item(confirm_button)
+        
+        # Decline button
+        decline_button = discord.ui.Button(
+            style=discord.ButtonStyle.danger,
+            label="Decline Transaction",
+            custom_id=f"decline_transaction_{transaction_id}"
+        )
+        decline_button.callback = transaction_decline_callback
+        view.add_item(decline_button)
+        
+        # Send withdrawal notification to admin (to PRIMARY_ADMIN_ID)
+        try:
+            admin = await bot.fetch_user(PRIMARY_ADMIN_ID)
+            if admin:
+                await admin.send(
+                    f"**PENDING WITHDRAWAL REQUEST** (ID: {transaction_id})\n" +
+                    f"User: {user.username} (ID: {user.id})\n" +
+                    f"Amount: {user.balance} naira\n" +
+                    f"Referral Count: {user.referral_count}\n" +
+                    f"Bank Name: {user.bank_name}\n" +
+                    f"Account Number: {user.bank_account_number}\n" +
+                    f"Account Name: {user.bank_account_name}\n" +
+                    f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                    view=view
+                )
+                
+                # Only delete user after successfully sending the notification to admin
+                delete_user(user_id)
+                
+                await interaction.response.send_message(
+                    f"Your withdrawal request for {user.balance} naira has been submitted as PENDING. " +
+                    "Your bank details have been sent to the admin. " +
+                    "You will receive your payment shortly. " +
+                    "Your account has been cleared. You can register again with a new coupon code when you're ready.",
+                    ephemeral=False
+                )
+            else:
+                # If admin couldn't be fetched
+                logger.error(f"Failed to fetch admin user with ID: {PRIMARY_ADMIN_ID}")
+                await interaction.response.send_message(
+                    "We couldn't process your withdrawal at this moment. Please try again later or contact support.",
+                    ephemeral=True
+                )
+                # Delete the transaction record since it failed
+                transactions = load_transactions()
+                if transaction_id in transactions:
+                    transactions.pop(transaction_id)
+                    save_transactions(transactions)
+        except Exception as e:
+            logger.error(f"Error sending withdrawal notification to admin: {e}")
+            await interaction.response.send_message(
+                "We couldn't process your withdrawal at this moment. Please try again later or contact support.",
+                ephemeral=True
+            )
+            # Delete the transaction record since it failed
+            transactions = load_transactions()
+            if transaction_id in transactions:
+                transactions.pop(transaction_id)
+                save_transactions(transactions)
     except Exception as e:
-        logger.error(f"Error in withdraw_callback initial checks: {e}")
+        logger.error(f"Error in withdraw_callback: {e}")
         # If the interaction has not been responded to yet, respond with an error message
         if not interaction.response.is_done():
             try:
@@ -797,72 +895,6 @@ async def withdraw_callback(interaction: discord.Interaction):
                     await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
                 except:
                     pass
-        return
-    
-    # Create a transaction record before deleting user
-    transaction_id = str(uuid.uuid4())[:8]  # Generate a short unique ID
-    transaction_data = {
-        "id": transaction_id,
-        "user_id": user.id,
-        "username": user.username,
-        "amount": user.balance,
-        "bank_name": user.bank_name,
-        "bank_account_number": user.bank_account_number,
-        "bank_account_name": user.bank_account_name,
-        "referral_count": user.referral_count,
-        "timestamp": datetime.now().isoformat(),
-        "status": "pending"
-    }
-    
-    # Save transaction record
-    save_transaction(transaction_id, transaction_data)
-    
-    # Create confirmation view with buttons
-    view = discord.ui.View(timeout=None)
-    
-    # Confirm button
-    confirm_button = discord.ui.Button(
-        style=discord.ButtonStyle.success,
-        label="Confirm Transaction",
-        custom_id=f"confirm_transaction_{transaction_id}"
-    )
-    confirm_button.callback = transaction_confirm_callback
-    view.add_item(confirm_button)
-    
-    # Decline button
-    decline_button = discord.ui.Button(
-        style=discord.ButtonStyle.danger,
-        label="Decline Transaction",
-        custom_id=f"decline_transaction_{transaction_id}"
-    )
-    decline_button.callback = transaction_decline_callback
-    view.add_item(decline_button)
-    
-    # Send withdrawal notification to admin (to PRIMARY_ADMIN_ID)
-    admin = await bot.fetch_user(PRIMARY_ADMIN_ID)
-    if admin:
-        await admin.send(
-            f"**PENDING WITHDRAWAL REQUEST** (ID: {transaction_id})\n" +
-            f"User: {user.username} (ID: {user.id})\n" +
-            f"Amount: {user.balance} naira\n" +
-            f"Referral Count: {user.referral_count}\n" +
-            f"Bank Name: {user.bank_name}\n" +
-            f"Account Number: {user.bank_account_number}\n" +
-            f"Account Name: {user.bank_account_name}\n" +
-            f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            view=view
-        )
-    
-    # Delete user immediately after withdrawal request
-    delete_user(user_id)
-    
-    await interaction.response.send_message(
-        f"Your withdrawal request for {user.balance} naira has been submitted as PENDING. " +
-        "Your bank details have been sent to the admin. " +
-        "You will receive your payment shortly. " +
-        "Your account has been cleared. You can register again with a new coupon code when you're ready.",
-        ephemeral=False
-    )
 
 async def set_bank_callback(interaction: discord.Interaction):
     try:
