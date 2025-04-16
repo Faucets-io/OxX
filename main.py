@@ -924,87 +924,139 @@ async def admin_start_callback(interaction: discord.Interaction):
                     pass
 
 async def admin_view_users_callback(interaction: discord.Interaction):
-    if not is_admin(interaction.user.id):
-        await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
-        return
-    
-    users = load_users()
-    if not users:
-        await interaction.response.send_message("No users found.", ephemeral=True)
-        return
-    
-    # Format user info
-    user_info = []
-    for user_id, user in users.items():
-        user_info.append(
-            f"**User: {user.username} (ID: {user.id})**\n" +
-            f"Balance: {user.balance} naira\n" +
-            f"Referral Count: {user.referral_count}\n" +
-            f"Referred By: {user.referred_by}\n" +
-            f"Bank Name: {user.bank_name}\n" +
-            f"Account Number: {user.bank_account_number}\n" +
-            f"Account Name: {user.bank_account_name}\n" +
-            f"Created At: {user.created_at}\n"
-        )
-    
-    # Split messages if too long
-    messages = []
-    current_message = ""
-    
-    for info in user_info:
-        if len(current_message) + len(info) > 1900:
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        users = load_users()
+        if not users:
+            await interaction.response.send_message("No users found.", ephemeral=True)
+            return
+        
+        # Format user info
+        user_info = []
+        for user_id, user in users.items():
+            user_info.append(
+                f"**User: {user.username} (ID: {user.id})**\n" +
+                f"Balance: {user.balance} naira\n" +
+                f"Referral Count: {user.referral_count}\n" +
+                f"Referred By: {user.referred_by}\n" +
+                f"Bank Name: {user.bank_name}\n" +
+                f"Account Number: {user.bank_account_number}\n" +
+                f"Account Name: {user.bank_account_name}\n" +
+                f"Created At: {user.created_at}\n"
+            )
+        
+        # Split messages if too long
+        messages = []
+        current_message = ""
+        
+        for info in user_info:
+            if len(current_message) + len(info) > 1900:
+                messages.append(current_message)
+                current_message = info
+            else:
+                current_message += info + "\n"
+        
+        if current_message:
             messages.append(current_message)
-            current_message = info
-        else:
-            current_message += info + "\n"
-    
-    if current_message:
-        messages.append(current_message)
-    
-    # Send messages
-    for i, message in enumerate(messages):
-        await interaction.followup.send(
-            f"User List (Part {i+1}/{len(messages)}):\n{message}",
-            ephemeral=True
-        ) if i > 0 else await interaction.response.send_message(
-            f"User List (Part {i+1}/{len(messages)}):\n{message}",
-            ephemeral=True
-        )
+        
+        # Send messages
+        for i, message in enumerate(messages):
+            await interaction.followup.send(
+                f"User List (Part {i+1}/{len(messages)}):\n{message}",
+                ephemeral=True
+            ) if i > 0 else await interaction.response.send_message(
+                f"User List (Part {i+1}/{len(messages)}):\n{message}",
+                ephemeral=True
+            )
+    except Exception as e:
+        logger.error(f"Error in admin_view_users_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 async def admin_generate_callback(interaction: discord.Interaction):
-    # Only the primary admin can generate coupon codes
-    if interaction.user.id != PRIMARY_ADMIN_ID:
-        await interaction.response.send_message("Only the primary admin can generate coupon codes.", ephemeral=True)
-        return
-    
-    # Show generate coupons modal
-    generate_modal = GenerateCouponsModal()
-    await interaction.response.send_modal(generate_modal)
+    try:
+        # Only the primary admin can generate coupon codes
+        if interaction.user.id != PRIMARY_ADMIN_ID:
+            await interaction.response.send_message("Only the primary admin can generate coupon codes.", ephemeral=True)
+            return
+        
+        # Show generate coupons modal
+        generate_modal = GenerateCouponsModal()
+        await interaction.response.send_modal(generate_modal)
+    except Exception as e:
+        logger.error(f"Error in admin_generate_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 async def admin_clear_used_callback(interaction: discord.Interaction):
-    if not is_admin(interaction.user.id):
-        await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
-        return
-    
-    cleared_count = clear_used_coupons()
-    
-    await interaction.response.send_message(
-        f"Cleared {cleared_count} used coupons.",
-        ephemeral=True
-    )
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        cleared_count = clear_used_coupons()
+        
+        await interaction.response.send_message(
+            f"Cleared {cleared_count} used coupons.",
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_clear_used_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 async def admin_view_balance_callback(interaction: discord.Interaction):
-    if not is_admin(interaction.user.id):
-        await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
-        return
-    
-    total_balance = calculate_total_balance()
-    users = load_users()
-    
-    await interaction.response.send_message(
-        f"Total balance across all {len(users)} users: {total_balance} naira",
-        ephemeral=True
-    )
+    try:
+        if not is_admin(interaction.user.id):
+            await interaction.response.send_message("You are not authorized to use admin commands.", ephemeral=True)
+            return
+        
+        total_balance = calculate_total_balance()
+        users = load_users()
+        
+        await interaction.response.send_message(
+            f"Total balance across all {len(users)} users: {total_balance} naira",
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in admin_view_balance_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 # Add button persistence - this is crucial for working without privileged intents
 @bot.event
