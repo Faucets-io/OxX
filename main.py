@@ -273,12 +273,14 @@ async def transaction_confirm_callback(interaction: discord.Interaction):
             user = await bot.fetch_user(int(transaction["user_id"]))
             if user:
                 await user.send(
-                    f"✅ Your withdrawal of {transaction['amount']} naira has been processed and sent to your bank account!\n\n" +
+                    f"💰 **WITHDRAWAL SUCCESSFUL!**\n\n" +
+                    f"Amount: {transaction['amount']} naira\n" +
                     f"Transaction ID: {transaction_id}\n" +
                     f"Bank: {transaction['bank_name']}\n" +
                     f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
                     f"Confirmation Time: {confirmation_time}\n\n" +
-                    f"Thank you for using KashFlow! You can register again with a new coupon code."
+                    f"Your account has been cleared. Thank you for using KashFlow!\n" +
+                    f"You can register again with a new coupon code."
                 )
         except Exception as e:
             logger.error(f"Failed to notify user about transaction confirmation: {e}")
@@ -863,10 +865,10 @@ async def withdraw_callback(interaction: discord.Interaction):
             
             # Send confirmation to user
             await interaction.response.send_message(
-                f"Your withdrawal request for {user.balance} naira has been submitted. " +
-                "Your bank details have been processed. " +
-                "You will receive your payment shortly. " +
-                "Your account has been cleared. You can register again with a new coupon code when you're ready.",
+                f"✅ Your withdrawal request for {user.balance} naira is pending admin approval.\n" +
+                f"Transaction ID: {transaction_id}\n" +
+                "You will receive a confirmation message once approved.\n" +
+                "Please wait while we process your withdrawal.",
                 ephemeral=False
             )
             
