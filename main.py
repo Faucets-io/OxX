@@ -53,6 +53,10 @@ BOT_ENABLED_FOR_USERS = True  # Bot status flag
 WHATSAPP_COMMUNITY_LINK = "https://chat.whatsapp.com/JMp6tB5yMTq1dMBYttIZOj"
 SUPPORT_EMAIL = "contactkashflow@yahoo.com"
 
+# Tutorial settings
+TUTORIAL_ENABLED = True  # Enable/disable tutorial feature
+TUTORIAL_TIMEOUT = 300   # Seconds before tutorial times out (5 minutes)
+
 # File paths
 USERS_FILE = 'users.json'
 COUPONS_FILE = 'coupons.json'
@@ -96,9 +100,14 @@ class User:
         self.bank_account_name = bank_account_name
         self.referral_count = referral_count
         self.created_at = datetime.now().isoformat()
+        
+        # Initialize tutorial progress
+        self.tutorial_step = 0
+        self.tutorial_completed = False
+        self.tutorial_last_interaction = None
 
     def to_dict(self) -> Dict:
-        return {
+        data = {
             "id": self.id,
             "username": self.username,
             "balance": self.balance,
@@ -109,6 +118,14 @@ class User:
             "referral_count": self.referral_count,
             "created_at": self.created_at
         }
+        # Add tutorial progress data
+        if hasattr(self, 'tutorial_step'):
+            data["tutorial_step"] = self.tutorial_step
+        if hasattr(self, 'tutorial_completed'):
+            data["tutorial_completed"] = self.tutorial_completed
+        if hasattr(self, 'tutorial_last_interaction'):
+            data["tutorial_last_interaction"] = self.tutorial_last_interaction
+        return data
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'User':
@@ -123,6 +140,10 @@ class User:
             referral_count=data.get("referral_count", 0)
         )
         user.created_at = data.get("created_at", datetime.now().isoformat())
+        # Add tutorial progress tracking
+        user.tutorial_step = data.get("tutorial_step", 0)
+        user.tutorial_completed = data.get("tutorial_completed", False)
+        user.tutorial_last_interaction = data.get("tutorial_last_interaction", None)
         return user
 
 # Data management functions
@@ -315,6 +336,83 @@ def generate_coins_animation(amount, message):
     frames.append(f"✨💰💰💰💰💰✨\n\n**{amount} naira**\n{message}")
     
     return frames
+
+# Tutorial animation frames
+def generate_tutorial_frames(message):
+    """Generate tutorial animation frames."""
+    frames = [
+        f"⭐\n\n{message}",
+        f"⭐⭐\n\n{message}",
+        f"⭐⭐⭐\n\n{message}",
+        f"✨⭐⭐⭐✨\n\n{message}",
+        f"✨⭐⭐⭐✨\n\n{message}",
+        f"✨⭐⭐⭐✨\n\n{message}",
+        f"🎓\n\n{message}"
+    ]
+    return frames
+
+# Tutorial step management functions
+def update_tutorial_progress(user_id: int, step: int = None, completed: bool = None) -> Optional[User]:
+    """Update tutorial progress for a user and save changes."""
+    user = get_user(user_id)
+    if not user:
+        return None
+        
+    if step is not None:
+        user.tutorial_step = step
+        
+    if completed is not None:
+        user.tutorial_completed = completed
+        
+    # Update last interaction time
+    user.tutorial_last_interaction = datetime.now().isoformat()
+    
+    # Save changes
+    add_user(user)
+    return user
+    
+def get_tutorial_content(step: int) -> Dict:
+    """Get content for a specific tutorial step."""
+    tutorial_steps = {
+        0: {
+            "title": "Welcome to KashFlow!",
+            "content": f"Let's get you started with KashFlow, your referral rewards platform! I'll guide you through the basics.\n\n**What we'll cover:**\n• Understanding the dashboard\n• Setting up your account\n• Referring friends\n• Withdrawing funds",
+            "next_label": "Start Tutorial",
+            "skip_label": "Skip Tutorial"
+        },
+        1: {
+            "title": "Step 1: Your Dashboard",
+            "content": f"This is your dashboard where you can see your current balance and referral count.\n\n• Current balance shows how much you've earned\n• You get **{WELCOME_BONUS}** naira when you register\n• Each referral earns you **{REFERRAL_BONUS}** naira\n• You need **{MINIMUM_REFERRALS}** referrals to withdraw",
+            "next_label": "Next Step",
+            "back_label": "Previous"
+        },
+        2: {
+            "title": "Step 2: Setting Up Your Account",
+            "content": "Before you can make withdrawals, you need to set up your bank information:\n\n• Click on \"Set Bank Information\" in your dashboard\n• Enter your bank name, account number, and account name\n• This is where your funds will be sent during withdrawal",
+            "next_label": "Next Step",
+            "back_label": "Previous"
+        },
+        3: {
+            "title": "Step 3: Referring Friends",
+            "content": f"Time to earn some rewards! Here's how to refer friends:\n\n• Click \"Copy ID to Refer\" in your dashboard\n• Share your referral ID with friends\n• When they register using your ID, you get **{REFERRAL_BONUS}** naira\n• Each friend also gets **{WELCOME_BONUS}** naira as welcome bonus",
+            "next_label": "Next Step",
+            "back_label": "Previous"
+        },
+        4: {
+            "title": "Step 4: Withdrawing Funds",
+            "content": f"Ready to cash out? Here's how withdrawals work:\n\n• You need at least **{WITHDRAWAL_THRESHOLD}** naira balance\n• You must have at least **{MINIMUM_REFERRALS}** referrals\n• Click \"Withdraw\" in your dashboard\n• Funds will be sent to your registered bank account\n• An admin will process your request",
+            "next_label": "Next Step",
+            "back_label": "Previous"
+        },
+        5: {
+            "title": "Tutorial Complete!",
+            "content": f"Congratulations! You now know how to use KashFlow.\n\n• Remember to share your referral ID\n• Each referral = **{REFERRAL_BONUS}** naira\n• Need help? Use the /help command\n• Join our WhatsApp community: {WHATSAPP_COMMUNITY_LINK}\n\nGood luck and happy earning!",
+            "finish_label": "Finish Tutorial",
+            "back_label": "Previous"
+        }
+    }
+    
+    return tutorial_steps.get(step, tutorial_steps[0])
 
 # Transaction management functions
 def load_transactions() -> Dict[str, Dict]:
@@ -619,6 +717,205 @@ def create_admin_dashboard_view() -> discord.ui.View:
     view.add_item(button_toggle_bot)
     
     return view
+
+# Tutorial UI View
+class TutorialView(discord.ui.View):
+    def __init__(self, user_id: int, step: int = 0):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+        self.step = step
+        self.max_steps = 5
+        
+        # Get content for current step
+        content = get_tutorial_content(self.step)
+        
+        # Add buttons based on current step
+        if self.step == 0:  # First step (welcome)
+            # Next button (Start Tutorial)
+            next_button = discord.ui.Button(
+                style=discord.ButtonStyle.primary,
+                label=content["next_label"],
+                custom_id=f"tutorial_next_{user_id}"
+            )
+            next_button.callback = self.next_callback
+            self.add_item(next_button)
+            
+            # Skip button
+            skip_button = discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label=content["skip_label"],
+                custom_id=f"tutorial_skip_{user_id}"
+            )
+            skip_button.callback = self.skip_callback
+            self.add_item(skip_button)
+        
+        elif self.step == self.max_steps:  # Last step
+            # Back button
+            back_button = discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label=content["back_label"],
+                custom_id=f"tutorial_back_{user_id}"
+            )
+            back_button.callback = self.back_callback
+            self.add_item(back_button)
+            
+            # Finish button
+            finish_button = discord.ui.Button(
+                style=discord.ButtonStyle.success,
+                label=content["finish_label"],
+                custom_id=f"tutorial_finish_{user_id}"
+            )
+            finish_button.callback = self.finish_callback
+            self.add_item(finish_button)
+            
+        else:  # Middle steps
+            # Back button
+            back_button = discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label=content["back_label"],
+                custom_id=f"tutorial_back_{user_id}"
+            )
+            back_button.callback = self.back_callback
+            self.add_item(back_button)
+            
+            # Next button
+            next_button = discord.ui.Button(
+                style=discord.ButtonStyle.primary,
+                label=content["next_label"],
+                custom_id=f"tutorial_next_{user_id}"
+            )
+            next_button.callback = self.next_callback
+            self.add_item(next_button)
+    
+    async def next_callback(self, interaction: discord.Interaction):
+        # Verify user ID
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This tutorial is not for you.", ephemeral=True)
+            return
+            
+        # Update step
+        new_step = min(self.step + 1, self.max_steps)
+        
+        # Update user progress in database
+        update_tutorial_progress(self.user_id, step=new_step)
+        
+        # Get content for new step
+        content = get_tutorial_content(new_step)
+        
+        # Create animated message for tutorial
+        message = f"# {content['title']}\n\n{content['content']}"
+        frames = generate_tutorial_frames(message)
+        
+        # Create new view for this step
+        new_view = TutorialView(self.user_id, new_step)
+        
+        # Send animated tutorial update
+        await interaction.response.defer()
+        await send_animated_message(
+            interaction, 
+            frames, 
+            duration=1.5, 
+            final_frame=message
+        )
+        # Send the new view as a followup
+        await interaction.followup.send(view=new_view)
+    
+    async def back_callback(self, interaction: discord.Interaction):
+        # Verify user ID
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This tutorial is not for you.", ephemeral=True)
+            return
+            
+        # Update step
+        new_step = max(self.step - 1, 0)
+        
+        # Update user progress in database
+        update_tutorial_progress(self.user_id, step=new_step)
+        
+        # Get content for new step
+        content = get_tutorial_content(new_step)
+        
+        # Create animated message for tutorial
+        message = f"# {content['title']}\n\n{content['content']}"
+        frames = generate_tutorial_frames(message)
+        
+        # Create new view for this step
+        new_view = TutorialView(self.user_id, new_step)
+        
+        # Send animated tutorial update
+        await interaction.response.defer()
+        await send_animated_message(
+            interaction, 
+            frames, 
+            duration=1.5, 
+            final_frame=message
+        )
+        # Send the new view as a followup
+        await interaction.followup.send(view=new_view)
+    
+    async def skip_callback(self, interaction: discord.Interaction):
+        # Verify user ID
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This tutorial is not for you.", ephemeral=True)
+            return
+            
+        # Mark tutorial as completed in database
+        update_tutorial_progress(self.user_id, completed=True)
+        
+        # Show dashboard instead
+        user = get_user(self.user_id)
+        
+        await interaction.response.send_message(
+            f"**Tutorial skipped. Welcome to your dashboard, {interaction.user.name}!**\n\n" +
+            f"Current Balance: **{user.balance}** naira\n" +
+            f"Referral Count: **{user.referral_count}**\n" +
+            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+            "**Dashboard Controls**:\n" +
+            "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+            "• **Check Balance**: View your current balance and referral count\n" +
+            f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
+            "• **Set Bank Information**: Update your bank details for withdrawals",
+            view=create_user_dashboard_view(self.user_id),
+            ephemeral=False
+        )
+    
+    async def finish_callback(self, interaction: discord.Interaction):
+        # Verify user ID
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This tutorial is not for you.", ephemeral=True)
+            return
+            
+        # Mark tutorial as completed in database
+        update_tutorial_progress(self.user_id, completed=True)
+        
+        # Show congratulations message with animation
+        message = "# 🎉 Tutorial Complete! 🎉\n\nYou've completed the KashFlow tutorial. You now have all the knowledge to start earning rewards by referring friends!\n\nRemember, each referral earns you additional naira. Good luck!"
+        frames = generate_success_animation(message)
+        
+        # Send animated congratulations message
+        await interaction.response.defer()
+        await send_animated_message(
+            interaction, 
+            frames, 
+            duration=2.0, 
+            final_frame=message
+        )
+        
+        # Show dashboard as followup
+        user = get_user(self.user_id)
+        await interaction.followup.send(
+            f"**Welcome to your dashboard, {interaction.user.name}!**\n\n" +
+            f"Current Balance: **{user.balance}** naira\n" +
+            f"Referral Count: **{user.referral_count}**\n" +
+            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+            "**Dashboard Controls**:\n" +
+            "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+            "• **Check Balance**: View your current balance and referral count\n" +
+            f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
+            "• **Set Bank Information**: Update your bank details for withdrawals",
+            view=create_user_dashboard_view(self.user_id),
+            ephemeral=False
+        )
 
 class RegisterModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs):
@@ -1566,9 +1863,45 @@ async def on_ready():
         )
         admin_view.add_item(admin_invite_link_button)
         
-        # Register the views with the bot
+        # Create help view with dashboard button (but we'll set callback separately)
+        help_view = discord.ui.View(timeout=None)
+        help_dashboard_button = discord.ui.Button(
+            style=discord.ButtonStyle.primary,
+            label="Go to Dashboard",
+            custom_id="help_dashboard"
+        )
+        
+        # Define the callback function for the help dashboard button
+        async def help_dashboard_callback(interaction):
+            user = get_user(interaction.user.id)
+            if user:
+                await interaction.response.send_message(
+                    f"**Your Dashboard**\n\n" +
+                    f"Current Balance: **{user.balance}** naira\n" +
+                    f"Referral Count: **{user.referral_count}**\n" +
+                    f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+                    "**Dashboard Controls**:\n" +
+                    "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
+                    "• **Check Balance**: View your current balance and referral count\n" +
+                    f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
+                    "• **Set Bank Information**: Update your bank details for withdrawals",
+                    view=create_user_dashboard_view(interaction.user.id),
+                    ephemeral=False
+                )
+            else:
+                await interaction.response.send_message(
+                    "You're not registered yet. Use /start to register with a coupon code.",
+                    ephemeral=True
+                )
+        
+        # Assign callback and add button to view
+        help_dashboard_button.callback = help_dashboard_callback
+        help_view.add_item(help_dashboard_button)
+        
+        # Register all views with the bot
         bot.add_view(user_view)
         bot.add_view(admin_view)
+        bot.add_view(help_view)
         
         logger.info("Persistent views registered successfully")
     except Exception as e:
@@ -1583,12 +1916,13 @@ async def on_ready():
             
             # First try fetching existing commands to avoid unnecessary syncs
             existing_commands = await bot.tree.fetch_commands()
-            if existing_commands and len(existing_commands) >= 3:  # We expect 3 commands: start, dashboard, admin
+            if existing_commands and len(existing_commands) >= 4:  # We expect 4 commands: start, dashboard, admin, help
                 logger.info(f"Found {len(existing_commands)} existing commands. No need to sync.")
                 logger.info("Bot is now fully operational!")
                 return
-
-            # If we need to sync
+            
+            # Force sync to ensure new commands are added
+            logger.info("Syncing commands to ensure all are available...")
             synced = await bot.tree.sync()
             logger.info(f"Successfully synced {len(synced)} command(s)")
             logger.info("Bot is now fully operational!")
