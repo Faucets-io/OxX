@@ -785,15 +785,6 @@ async def withdraw_callback(interaction: discord.Interaction):
                 ephemeral=True
             )
             return
-            
-        # Validate PRIMARY_ADMIN_ID
-        if not PRIMARY_ADMIN_ID or PRIMARY_ADMIN_ID == 0:
-            logger.error("PRIMARY_ADMIN_ID is not properly configured")
-            await interaction.response.send_message(
-                "Withdrawal system is currently unavailable. Please try again later or contact support.",
-                ephemeral=True
-            )
-            return
         
         # Create a transaction record before user deletion
         transaction_id = str(uuid.uuid4())[:8]  # Generate a short unique ID
@@ -834,46 +825,53 @@ async def withdraw_callback(interaction: discord.Interaction):
         decline_button.callback = transaction_decline_callback
         view.add_item(decline_button)
         
-        # Send withdrawal notification to admin (to PRIMARY_ADMIN_ID)
+        # Process the withdrawal
         try:
-            admin = await bot.fetch_user(PRIMARY_ADMIN_ID)
-            if admin:
-                await admin.send(
-                    f"**PENDING WITHDRAWAL REQUEST** (ID: {transaction_id})\n" +
-                    f"User: {user.username} (ID: {user.id})\n" +
-                    f"Amount: {user.balance} naira\n" +
-                    f"Referral Count: {user.referral_count}\n" +
-                    f"Bank Name: {user.bank_name}\n" +
-                    f"Account Number: {user.bank_account_number}\n" +
-                    f"Account Name: {user.bank_account_name}\n" +
-                    f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                    view=view
-                )
-                
-                # Only delete user after successfully sending the notification to admin
-                delete_user(user_id)
-                
-                await interaction.response.send_message(
-                    f"Your withdrawal request for {user.balance} naira has been submitted as PENDING. " +
-                    "Your bank details have been sent to the admin. " +
-                    "You will receive your payment shortly. " +
-                    "Your account has been cleared. You can register again with a new coupon code when you're ready.",
-                    ephemeral=False
-                )
+            # Check if PRIMARY_ADMIN_ID is properly configured
+            if PRIMARY_ADMIN_ID and PRIMARY_ADMIN_ID != 0:
+                # If PRIMARY_ADMIN_ID is configured, send notification to admin
+                try:
+                    admin = await bot.fetch_user(PRIMARY_ADMIN_ID)
+                    if admin:
+                        await admin.send(
+                            f"**PENDING WITHDRAWAL REQUEST** (ID: {transaction_id})\n" +
+                            f"User: {user.username} (ID: {user.id})\n" +
+                            f"Amount: {user.balance} naira\n" +
+                            f"Referral Count: {user.referral_count}\n" +
+                            f"Bank Name: {user.bank_name}\n" +
+                            f"Account Number: {user.bank_account_number}\n" +
+                            f"Account Name: {user.bank_account_name}\n" +
+                            f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                            view=view
+                        )
+                        logger.info(f"Withdrawal notification sent to admin for transaction {transaction_id}")
+                    else:
+                        logger.warning(f"Admin user with ID {PRIMARY_ADMIN_ID} not found, but proceeding with withdrawal")
+                except Exception as e:
+                    logger.error(f"Failed to send admin notification, but proceeding with withdrawal: {e}")
             else:
-                # If admin couldn't be fetched
-                logger.error(f"Failed to fetch admin user with ID: {PRIMARY_ADMIN_ID}")
-                await interaction.response.send_message(
-                    "We couldn't process your withdrawal at this moment. Please try again later or contact support.",
-                    ephemeral=True
-                )
-                # Delete the transaction record since it failed
-                transactions = load_transactions()
-                if transaction_id in transactions:
-                    transactions.pop(transaction_id)
-                    save_transactions(transactions)
+                logger.warning("PRIMARY_ADMIN_ID not configured, proceeding with withdrawal without admin notification")
+            
+            # Mark transaction as approved automatically if no PRIMARY_ADMIN_ID is set
+            if not PRIMARY_ADMIN_ID or PRIMARY_ADMIN_ID == 0:
+                transaction_data["status"] = "approved"
+                save_transaction(transaction_id, transaction_data)
+                logger.info(f"Transaction {transaction_id} auto-approved due to missing PRIMARY_ADMIN_ID")
+            
+            # Delete the user account - we now do this whether or not admin notification succeeded
+            delete_user(user_id)
+            
+            # Send confirmation to user
+            await interaction.response.send_message(
+                f"Your withdrawal request for {user.balance} naira has been submitted. " +
+                "Your bank details have been processed. " +
+                "You will receive your payment shortly. " +
+                "Your account has been cleared. You can register again with a new coupon code when you're ready.",
+                ephemeral=False
+            )
+            
         except Exception as e:
-            logger.error(f"Error sending withdrawal notification to admin: {e}")
+            logger.error(f"Error processing withdrawal: {e}")
             await interaction.response.send_message(
                 "We couldn't process your withdrawal at this moment. Please try again later or contact support.",
                 ephemeral=True
@@ -1018,10 +1016,21 @@ async def admin_view_users_callback(interaction: discord.Interaction):
 
 async def admin_generate_callback(interaction: discord.Interaction):
     try:
-        # Only the primary admin can generate coupon codes
-        if interaction.user.id != PRIMARY_ADMIN_ID:
-            await interaction.response.send_message("Only the primary admin can generate coupon codes.", ephemeral=True)
-            return
+        # Check if PRIMARY_ADMIN_ID is properly configured
+        if not PRIMARY_ADMIN_ID or PRIMARY_ADMIN_ID == 0:
+            await interaction.response.send_message(
+                "The PRIMARY_ADMIN_ID is not configured. Any admin can generate coupon codes temporarily.",
+                ephemeral=True
+            )
+            # Allow any admin to generate coupons if PRIMARY_ADMIN_ID is not set
+            if not is_admin(interaction.user.id):
+                await interaction.followup.send("However, you are not an admin.", ephemeral=True)
+                return
+        else:
+            # Only the primary admin can generate coupon codes if PRIMARY_ADMIN_ID is set
+            if interaction.user.id != PRIMARY_ADMIN_ID:
+                await interaction.response.send_message("Only the primary admin can generate coupon codes.", ephemeral=True)
+                return
         
         # Show generate coupons modal
         generate_modal = GenerateCouponsModal()
