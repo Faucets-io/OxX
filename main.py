@@ -662,37 +662,63 @@ class GenerateCouponsModal(discord.ui.Modal):
 
 # Button Callbacks
 async def copy_id_callback(interaction: discord.Interaction):
-    custom_id = interaction.data["custom_id"]
-    user_id = int(custom_id.split("_")[-1])
-    
-    if interaction.user.id != user_id:
-        await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
-        return
-    
-    await interaction.response.send_message(
-        f"Your referral ID is: `{user_id}`\nShare this ID with new users to earn referral bonuses!",
-        ephemeral=True
-    )
+    try:
+        custom_id = interaction.data["custom_id"]
+        user_id = int(custom_id.split("_")[-1])
+        
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
+            return
+        
+        await interaction.response.send_message(
+            f"Your referral ID is: `{user_id}`\nShare this ID with new users to earn referral bonuses!",
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in copy_id_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 async def check_balance_callback(interaction: discord.Interaction):
-    custom_id = interaction.data["custom_id"]
-    user_id = int(custom_id.split("_")[-1])
-    
-    if interaction.user.id != user_id:
-        await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
-        return
-    
-    user = get_user(user_id)
-    if not user:
-        await interaction.response.send_message("User not found.", ephemeral=True)
-        return
-    
-    await interaction.response.send_message(
-        f"Your current balance is: {user.balance} naira\n" +
-        f"Referral count: {user.referral_count} (need {MINIMUM_REFERRALS} to withdraw)\n" +
-        f"Withdrawal threshold: {WITHDRAWAL_THRESHOLD} naira",
-        ephemeral=True
-    )
+    try:
+        custom_id = interaction.data["custom_id"]
+        user_id = int(custom_id.split("_")[-1])
+        
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("This is not your dashboard.", ephemeral=True)
+            return
+        
+        user = get_user(user_id)
+        if not user:
+            await interaction.response.send_message("User not found.", ephemeral=True)
+            return
+        
+        await interaction.response.send_message(
+            f"Your current balance is: {user.balance} naira\n" +
+            f"Referral count: {user.referral_count} (need {MINIMUM_REFERRALS} to withdraw)\n" +
+            f"Withdrawal threshold: {WITHDRAWAL_THRESHOLD} naira",
+            ephemeral=True
+        )
+    except Exception as e:
+        logger.error(f"Error in check_balance_callback: {e}")
+        # If the interaction has not been responded to yet, respond with an error message
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
+            except:
+                # If all else fails, try to send a followup message
+                try:
+                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
+                except:
+                    pass
 
 async def withdraw_callback(interaction: discord.Interaction):
     custom_id = interaction.data["custom_id"]
