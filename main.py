@@ -199,7 +199,10 @@ class User:
         bank_name: str = "", 
         bank_account_number: str = "", 
         bank_account_name: str = "",
-        referral_count: int = 0
+        referral_count: int = 0,
+        rating: Optional[int] = None,
+        rating_comment: str = "",
+        rating_approved: bool = False
     ):
         self.id = id
         self.username = username
@@ -210,6 +213,11 @@ class User:
         self.bank_account_name = bank_account_name
         self.referral_count = referral_count
         self.created_at = datetime.now().isoformat()
+        
+        # Add rating attributes
+        self.rating = rating               # Rating from 1-5 stars
+        self.rating_comment = rating_comment  # User's comment with their rating
+        self.rating_approved = rating_approved  # Admin approval status
         
         # Initialize tutorial progress
         self.tutorial_step = 0
@@ -228,6 +236,14 @@ class User:
             "referral_count": self.referral_count,
             "created_at": self.created_at
         }
+        # Add rating data if it exists
+        if hasattr(self, 'rating') and self.rating is not None:
+            data["rating"] = self.rating
+        if hasattr(self, 'rating_comment'):
+            data["rating_comment"] = self.rating_comment
+        if hasattr(self, 'rating_approved'):
+            data["rating_approved"] = self.rating_approved
+            
         # Add tutorial progress data
         if hasattr(self, 'tutorial_step'):
             data["tutorial_step"] = self.tutorial_step
@@ -247,7 +263,10 @@ class User:
             bank_name=data.get("bank_name", ""),
             bank_account_number=data.get("bank_account_number", ""),
             bank_account_name=data.get("bank_account_name", ""),
-            referral_count=data.get("referral_count", 0)
+            referral_count=data.get("referral_count", 0),
+            rating=data.get("rating"),
+            rating_comment=data.get("rating_comment", ""),
+            rating_approved=data.get("rating_approved", False)
         )
         user.created_at = data.get("created_at", datetime.now().isoformat())
         # Add tutorial progress tracking
@@ -389,6 +408,117 @@ def clear_used_coupons() -> int:
         del coupons[code]
     save_coupons(coupons)
     return len(used_coupons)
+
+# Rating management functions
+def submit_user_rating(user_id: int, rating: int, comment: str = "") -> bool:
+    """
+    Submit a rating for the application from a user.
+    
+    Parameters:
+    - user_id: The ID of the user submitting the rating
+    - rating: An integer from 1-5 representing the user's rating
+    - comment: Optional comment or feedback from the user
+    
+    Returns:
+    - Boolean indicating success or failure
+    """
+    try:
+        # Get user
+        user = get_user(user_id)
+        if not user:
+            return False
+            
+        # Update user with rating
+        user.rating = rating
+        user.rating_comment = comment
+        user.rating_approved = False  # Requires admin approval
+        
+        # Save changes
+        add_user(user)
+        logger.info(f"User {user_id} submitted rating: {rating}/5")
+        return True
+    except Exception as e:
+        logger.error(f"Error submitting rating: {e}")
+        return False
+
+def approve_user_rating(user_id: int) -> bool:
+    """
+    Approve a user's rating so it can be shown in the top ratings.
+    
+    Parameters:
+    - user_id: The ID of the user whose rating should be approved
+    
+    Returns:
+    - Boolean indicating success or failure
+    """
+    try:
+        # Get user
+        user = get_user(user_id)
+        if not user or user.rating is None:
+            return False
+            
+        # Approve rating
+        user.rating_approved = True
+        
+        # Save changes
+        add_user(user)
+        logger.info(f"Admin approved rating from user {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error approving rating: {e}")
+        return False
+
+def get_pending_ratings() -> List[User]:
+    """
+    Get a list of users with pending (unapproved) ratings.
+    
+    Returns:
+    - List of User objects with pending ratings
+    """
+    users = load_users()
+    return [user for user in users.values() 
+            if hasattr(user, 'rating') and user.rating is not None 
+            and not user.rating_approved]
+
+def get_top_rated_users(limit: int = 5) -> List[User]:
+    """
+    Get a list of top-rated users (with approved ratings).
+    
+    Parameters:
+    - limit: Maximum number of users to return
+    
+    Returns:
+    - List of User objects with approved ratings, sorted by rating (highest first)
+    """
+    users = load_users()
+    rated_users = [user for user in users.values() 
+                  if hasattr(user, 'rating') and user.rating is not None 
+                  and user.rating_approved]
+    
+    # Sort users by rating (highest first)
+    sorted_users = sorted(rated_users, key=lambda u: u.rating, reverse=True)
+    
+    # Return up to the limit
+    return sorted_users[:limit]
+
+def generate_rating_stars(rating: int) -> str:
+    """
+    Generate a star representation of a rating.
+    
+    Parameters:
+    - rating: Integer rating from 1-5
+    
+    Returns:
+    - String of stars representing the rating
+    """
+    if rating is None:
+        return ""
+        
+    # Ensure rating is between 1 and 5
+    rating = max(1, min(5, rating))
+    
+    # Generate stars
+    return "⭐" * rating
 
 # Animation and notification utilities
 async def send_animated_message(destination, frames, duration=2.0, final_frame=None, ephemeral=False):
@@ -958,6 +1088,24 @@ def create_user_dashboard_view(user_id: int) -> discord.ui.View:
     button_set_bank.callback = set_bank_callback
     view.add_item(button_set_bank)
     
+    # Rate App button
+    button_rate = discord.ui.Button(
+        style=discord.ButtonStyle.secondary,
+        label="Rate App",
+        custom_id=f"rate_app_{user_id}"
+    )
+    button_rate.callback = rate_app_callback
+    view.add_item(button_rate)
+    
+    # View Top Ratings button
+    button_top_ratings = discord.ui.Button(
+        style=discord.ButtonStyle.secondary,
+        label="View Top Ratings",
+        custom_id=f"view_top_ratings_{user_id}"
+    )
+    button_top_ratings.callback = view_top_ratings_callback
+    view.add_item(button_top_ratings)
+    
     return view
 
 async def admin_config_callback(interaction: discord.Interaction):
@@ -1189,6 +1337,15 @@ def create_admin_dashboard_view() -> discord.ui.View:
     )
     button_pending_transactions.callback = admin_view_pending_transactions_callback
     view.add_item(button_pending_transactions)
+    
+    # View pending ratings button
+    button_pending_ratings = discord.ui.Button(
+        style=discord.ButtonStyle.primary,
+        label="View Pending Ratings",
+        custom_id="admin_pending_ratings"
+    )
+    button_pending_ratings.callback = admin_view_pending_ratings_callback
+    view.add_item(button_pending_ratings)
     
     # Toggle bot status button
     bot_status_label = "Disable Bot" if BOT_ENABLED_FOR_USERS else "Enable Bot"
