@@ -53,6 +53,9 @@ ADMIN_NOTIFICATION_CHANNEL_ID = None  # Channel ID for admin notifications
 MAX_WITHDRAWAL_DAILY = 5000  # Maximum daily withdrawal amount
 PAYMENT_METHODS = {"bank_transfer": True, "mobile_money": False}  # Available payment methods
 SYSTEM_ANNOUNCEMENTS = {"enabled": True, "message": "Welcome to KashFlow!"}  # System announcements
+DEMO_MODE_ENABLED = True  # Whether demo mode is enabled for new users
+DEMO_BALANCE = 1500  # Demo balance to show in demo mode
+DEMO_REFERRALS = 6  # Demo referral count to show in demo mode
 
 # Bot status control
 BOT_ENABLED_FOR_USERS = True  # Bot status flag
@@ -79,7 +82,10 @@ def load_config() -> Dict:
                 "payment_methods": PAYMENT_METHODS,
                 "system_announcements": SYSTEM_ANNOUNCEMENTS,
                 "coupon_price": COUPON_PRICE,
-                "bot_enabled_for_users": BOT_ENABLED_FOR_USERS
+                "bot_enabled_for_users": BOT_ENABLED_FOR_USERS,
+                "demo_mode_enabled": DEMO_MODE_ENABLED,
+                "demo_balance": DEMO_BALANCE,
+                "demo_referrals": DEMO_REFERRALS
             }
             save_config(config)
             return config
@@ -127,7 +133,7 @@ def apply_config() -> None:
     global TUTORIAL_ENABLED, TUTORIAL_TIMEOUT, AUTO_APPROVE_WITHDRAWALS
     global ADMIN_NOTIFICATION_CHANNEL_ID, MAX_WITHDRAWAL_DAILY
     global PAYMENT_METHODS, SYSTEM_ANNOUNCEMENTS, COUPON_PRICE
-    global BOT_ENABLED_FOR_USERS
+    global BOT_ENABLED_FOR_USERS, DEMO_MODE_ENABLED, DEMO_BALANCE, DEMO_REFERRALS
     
     config = load_config()
     if config:
@@ -144,6 +150,9 @@ def apply_config() -> None:
         SYSTEM_ANNOUNCEMENTS = config.get("system_announcements", SYSTEM_ANNOUNCEMENTS)
         COUPON_PRICE = config.get("coupon_price", COUPON_PRICE)
         BOT_ENABLED_FOR_USERS = config.get("bot_enabled_for_users", BOT_ENABLED_FOR_USERS)
+        DEMO_MODE_ENABLED = config.get("demo_mode_enabled", DEMO_MODE_ENABLED)
+        DEMO_BALANCE = config.get("demo_balance", DEMO_BALANCE)
+        DEMO_REFERRALS = config.get("demo_referrals", DEMO_REFERRALS)
         
         logger.info(f"Configuration loaded: Welcome bonus={WELCOME_BONUS}, Referral bonus={REFERRAL_BONUS}")
 
@@ -348,6 +357,9 @@ def create_bot_enable_view(interaction_user_id: int) -> Optional[discord.ui.View
             # Enable the bot
             global BOT_ENABLED_FOR_USERS
             BOT_ENABLED_FOR_USERS = True
+            
+            # Save the updated status to configuration
+            update_config("bot_enabled_for_users", BOT_ENABLED_FOR_USERS)
             
             # Confirm to the admin
             await enable_interaction.response.send_message(
@@ -2283,6 +2295,9 @@ async def admin_toggle_bot_status_callback(interaction: discord.Interaction):
         
         global BOT_ENABLED_FOR_USERS
         BOT_ENABLED_FOR_USERS = not BOT_ENABLED_FOR_USERS
+        
+        # Save the updated status to configuration
+        update_config("bot_enabled_for_users", BOT_ENABLED_FOR_USERS)
         
         status = "enabled" if BOT_ENABLED_FOR_USERS else "disabled"
         await interaction.response.send_message(

@@ -15,5 +15,10 @@
     "system_announcements": {
         "enabled": true,
         "message": "Welcome to KashFlow!"
-    }
+    },
+    "bot_enabled_for_users": true,
+    "coupon_price": 500,
+    "demo_mode_enabled": true,
+    "demo_balance": 1500,
+    "demo_referrals": 6
 }
