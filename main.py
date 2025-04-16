@@ -213,6 +213,61 @@ def calculate_total_balance() -> int:
     users = load_users()
     return sum(user.balance for user in users.values())
 
+def create_bot_enable_view(interaction_user_id: int) -> Optional[discord.ui.View]:
+    """
+    Creates a view with an Enable Bot button if the user is an admin.
+    
+    Args:
+        interaction_user_id: The ID of the user who triggered the interaction
+        
+    Returns:
+        A discord.ui.View with the Enable Bot button, or None if user is not an admin
+    """
+    # Only create view for admins
+    if not is_admin(interaction_user_id):
+        return None
+    
+    view = discord.ui.View(timeout=None)
+    enable_button = discord.ui.Button(
+        style=discord.ButtonStyle.success,
+        label="Enable Bot for Users",
+        custom_id="quick_enable_bot"
+    )
+    
+    async def quick_enable_callback(enable_interaction: discord.Interaction):
+        try:
+            # Double-check admin status
+            if not is_admin(enable_interaction.user.id):
+                await enable_interaction.response.send_message(
+                    "You are not authorized to enable the bot.",
+                    ephemeral=True
+                )
+                return
+            
+            # Enable the bot
+            global BOT_ENABLED_FOR_USERS
+            BOT_ENABLED_FOR_USERS = True
+            
+            # Confirm to the admin
+            await enable_interaction.response.send_message(
+                "✅ Bot has been enabled for all users.",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error in quick_enable_callback: {e}")
+            if not enable_interaction.response.is_done():
+                try:
+                    await enable_interaction.response.send_message(
+                        "Something went wrong. Please try again.",
+                        ephemeral=True
+                    )
+                except:
+                    pass
+    
+    enable_button.callback = quick_enable_callback
+    view.add_item(enable_button)
+    return view
+
 def clear_used_coupons() -> int:
     """Clear all used coupons and return count of cleared coupons."""
     coupons = load_coupons()
@@ -1998,12 +2053,23 @@ async def on_command_error(ctx, error):
 @bot.tree.command(name="start", description="Start using the bot")
 async def start(interaction: discord.Interaction):
     """Start command for new users to register with a coupon code."""
-    # Check if bot is disabled for non-admins
-    if not BOT_ENABLED_FOR_USERS and not is_admin(interaction.user.id):
-        await interaction.response.send_message(
-            "⚠️ The bot is currently disabled for maintenance. Please try again later.",
-            ephemeral=True
-        )
+    # Check if bot is disabled
+    if not BOT_ENABLED_FOR_USERS:
+        # For admins, show enable button
+        if is_admin(interaction.user.id):
+            view = create_bot_enable_view(interaction.user.id)
+            await interaction.response.send_message(
+                "⚠️ The bot is currently disabled for regular users.\n\n" +
+                "As an admin, you can continue to use all commands, or you can enable the bot for all users.",
+                view=view,
+                ephemeral=True
+            )
+        else:
+            # For regular users, just show the disabled message
+            await interaction.response.send_message(
+                "⚠️ The bot is currently disabled for maintenance. Please try again later.",
+                ephemeral=True
+            )
         return
         
     # Check if user is already registered
@@ -2096,12 +2162,23 @@ async def start(interaction: discord.Interaction):
 @bot.tree.command(name="dashboard", description="View your dashboard")
 async def dashboard(interaction: discord.Interaction):
     """Show the user dashboard for existing users."""
-    # Check if bot is disabled for non-admins
-    if not BOT_ENABLED_FOR_USERS and not is_admin(interaction.user.id):
-        await interaction.response.send_message(
-            "⚠️ The bot is currently disabled for maintenance. Please try again later.",
-            ephemeral=True
-        )
+    # Check if bot is disabled
+    if not BOT_ENABLED_FOR_USERS:
+        # For admins, show enable button
+        if is_admin(interaction.user.id):
+            view = create_bot_enable_view(interaction.user.id)
+            await interaction.response.send_message(
+                "⚠️ The bot is currently disabled for regular users.\n\n" +
+                "As an admin, you can continue to use all commands, or you can enable the bot for all users.",
+                view=view,
+                ephemeral=True
+            )
+        else:
+            # For regular users, just show the disabled message
+            await interaction.response.send_message(
+                "⚠️ The bot is currently disabled for maintenance. Please try again later.",
+                ephemeral=True
+            )
         return
         
     user = get_user(interaction.user.id)
@@ -2241,12 +2318,23 @@ async def admin(interaction: discord.Interaction):
 @bot.tree.command(name="help", description="Get help and contact information")
 async def help_command(interaction: discord.Interaction):
     """Show help and contact information."""
-    # Check if bot is disabled for non-admins
-    if not BOT_ENABLED_FOR_USERS and not is_admin(interaction.user.id):
-        await interaction.response.send_message(
-            "⚠️ The bot is currently disabled for maintenance. Please try again later.",
-            ephemeral=True
-        )
+    # Check if bot is disabled
+    if not BOT_ENABLED_FOR_USERS:
+        # For admins, show enable button
+        if is_admin(interaction.user.id):
+            view = create_bot_enable_view(interaction.user.id)
+            await interaction.response.send_message(
+                "⚠️ The bot is currently disabled for regular users.\n\n" +
+                "As an admin, you can continue to use all commands, or you can enable the bot for all users.",
+                view=view,
+                ephemeral=True
+            )
+        else:
+            # For regular users, just show the disabled message
+            await interaction.response.send_message(
+                "⚠️ The bot is currently disabled for maintenance. Please try again later.",
+                ephemeral=True
+            )
         return
     
     # Generate help message with contact info
