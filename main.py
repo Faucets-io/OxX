@@ -4,6 +4,8 @@ import random
 import string
 import logging
 import asyncio
+import uuid
+import io
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -47,9 +49,10 @@ COUPON_LENGTH = 12  # Length of coupon code
 # File paths
 USERS_FILE = 'users.json'
 COUPONS_FILE = 'coupons.json'
+TRANSACTIONS_FILE = 'transactions.json'
 
 # Create files if they don't exist
-for file_path in [USERS_FILE, COUPONS_FILE]:
+for file_path in [USERS_FILE, COUPONS_FILE, TRANSACTIONS_FILE]:
     if not os.path.exists(file_path):
         with open(file_path, 'w') as f:
             json.dump({}, f)
@@ -190,6 +193,144 @@ def clear_used_coupons() -> int:
         del coupons[code]
     save_coupons(coupons)
     return len(used_coupons)
+
+# Transaction management functions
+def load_transactions() -> Dict[str, Dict]:
+    """Load transactions from file."""
+    try:
+        with open(TRANSACTIONS_FILE, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        return {}
+
+def save_transactions(transactions: Dict[str, Dict]) -> None:
+    """Save transactions to file."""
+    with open(TRANSACTIONS_FILE, 'w') as f:
+        json.dump(transactions, f, indent=4)
+
+def save_transaction(transaction_id: str, transaction_data: Dict) -> None:
+    """Save a single transaction."""
+    transactions = load_transactions()
+    transactions[transaction_id] = transaction_data
+    save_transactions(transactions)
+
+def get_transaction(transaction_id: str) -> Optional[Dict]:
+    """Get a transaction by ID."""
+    transactions = load_transactions()
+    return transactions.get(transaction_id)
+
+def update_transaction_status(transaction_id: str, status: str) -> None:
+    """Update the status of a transaction."""
+    transactions = load_transactions()
+    if transaction_id in transactions:
+        transactions[transaction_id]["status"] = status
+        transactions[transaction_id]["updated_at"] = datetime.now().isoformat()
+        save_transactions(transactions)
+
+# Transaction callback functions
+async def transaction_confirm_callback(interaction: discord.Interaction):
+    """Handle confirmation of a pending transaction."""
+    # Verify admin permissions
+    if interaction.user.id != PRIMARY_ADMIN_ID:
+        await interaction.response.send_message("Only the primary admin can confirm transactions.", ephemeral=True)
+        return
+    
+    # Extract transaction ID from custom_id
+    custom_id = interaction.data["custom_id"]
+    transaction_id = custom_id.split("_")[-1]
+    
+    # Get transaction data
+    transaction = get_transaction(transaction_id)
+    if not transaction:
+        await interaction.response.send_message("Transaction not found.", ephemeral=True)
+        return
+    
+    # Update transaction status
+    if transaction["status"] != "pending":
+        await interaction.response.send_message(f"Transaction is already {transaction['status']}.", ephemeral=True)
+        return
+    
+    # Update transaction status
+    update_transaction_status(transaction_id, "completed")
+    
+    # Get timestamp for confirmation
+    confirmation_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Respond to admin
+    await interaction.response.send_message(
+        f"✅ Transaction **{transaction_id}** confirmed!\n\n" +
+        f"Amount: {transaction['amount']} naira\n" +
+        f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
+        f"Bank: {transaction['bank_name']}\n" +
+        f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
+        f"Confirmation Time: {confirmation_time}",
+        ephemeral=True
+    )
+    
+    # Try to notify the user
+    try:
+        user = await bot.fetch_user(int(transaction["user_id"]))
+        if user:
+            await user.send(
+                f"✅ Your withdrawal of {transaction['amount']} naira has been processed and sent to your bank account!\n\n" +
+                f"Transaction ID: {transaction_id}\n" +
+                f"Bank: {transaction['bank_name']}\n" +
+                f"Account: {transaction['bank_account_number']} ({transaction['bank_account_name']})\n" +
+                f"Confirmation Time: {confirmation_time}\n\n" +
+                f"Thank you for using KashFlow! You can register again with a new coupon code."
+            )
+    except Exception as e:
+        logger.error(f"Failed to notify user about transaction confirmation: {e}")
+
+async def transaction_decline_callback(interaction: discord.Interaction):
+    """Handle declining of a pending transaction."""
+    # Verify admin permissions
+    if interaction.user.id != PRIMARY_ADMIN_ID:
+        await interaction.response.send_message("Only the primary admin can decline transactions.", ephemeral=True)
+        return
+    
+    # Extract transaction ID from custom_id
+    custom_id = interaction.data["custom_id"]
+    transaction_id = custom_id.split("_")[-1]
+    
+    # Get transaction data
+    transaction = get_transaction(transaction_id)
+    if not transaction:
+        await interaction.response.send_message("Transaction not found.", ephemeral=True)
+        return
+    
+    # Check if transaction is still pending
+    if transaction["status"] != "pending":
+        await interaction.response.send_message(f"Transaction is already {transaction['status']}.", ephemeral=True)
+        return
+    
+    # Update transaction status
+    update_transaction_status(transaction_id, "declined")
+    
+    # Get timestamp for decline
+    decline_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Respond to admin
+    await interaction.response.send_message(
+        f"❌ Transaction **{transaction_id}** declined.\n\n" +
+        f"Amount: {transaction['amount']} naira\n" +
+        f"User: {transaction['username']} (ID: {transaction['user_id']})\n" +
+        f"Decline Time: {decline_time}",
+        ephemeral=True
+    )
+    
+    # Try to notify the user
+    try:
+        user = await bot.fetch_user(int(transaction["user_id"]))
+        if user:
+            await user.send(
+                f"❌ Your withdrawal of {transaction['amount']} naira has been declined.\n\n" +
+                f"Transaction ID: {transaction_id}\n" +
+                f"Decline Time: {decline_time}\n\n" +
+                f"Please contact an admin for more information."
+            )
+    except Exception as e:
+        logger.error(f"Failed to notify user about transaction decline: {e}")
 
 # UI Components
 def create_user_dashboard_view(user_id: int) -> discord.ui.View:
@@ -592,18 +733,58 @@ async def withdraw_callback(interaction: discord.Interaction):
         )
         return
     
+    # Create a transaction record before deleting user
+    transaction_id = str(uuid.uuid4())[:8]  # Generate a short unique ID
+    transaction_data = {
+        "id": transaction_id,
+        "user_id": user.id,
+        "username": user.username,
+        "amount": user.balance,
+        "bank_name": user.bank_name,
+        "bank_account_number": user.bank_account_number,
+        "bank_account_name": user.bank_account_name,
+        "referral_count": user.referral_count,
+        "timestamp": datetime.now().isoformat(),
+        "status": "pending"
+    }
+    
+    # Save transaction record
+    save_transaction(transaction_id, transaction_data)
+    
+    # Create confirmation view with buttons
+    view = discord.ui.View(timeout=None)
+    
+    # Confirm button
+    confirm_button = discord.ui.Button(
+        style=discord.ButtonStyle.success,
+        label="Confirm Transaction",
+        custom_id=f"confirm_transaction_{transaction_id}"
+    )
+    confirm_button.callback = transaction_confirm_callback
+    view.add_item(confirm_button)
+    
+    # Decline button
+    decline_button = discord.ui.Button(
+        style=discord.ButtonStyle.danger,
+        label="Decline Transaction",
+        custom_id=f"decline_transaction_{transaction_id}"
+    )
+    decline_button.callback = transaction_decline_callback
+    view.add_item(decline_button)
+    
     # Send withdrawal notification to admin (to PRIMARY_ADMIN_ID)
     admin = await bot.fetch_user(PRIMARY_ADMIN_ID)
     if admin:
         await admin.send(
-            f"**PENDING WITHDRAWAL REQUEST**\n" +
+            f"**PENDING WITHDRAWAL REQUEST** (ID: {transaction_id})\n" +
             f"User: {user.username} (ID: {user.id})\n" +
             f"Amount: {user.balance} naira\n" +
             f"Referral Count: {user.referral_count}\n" +
             f"Bank Name: {user.bank_name}\n" +
             f"Account Number: {user.bank_account_number}\n" +
             f"Account Name: {user.bank_account_name}\n" +
-            f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            view=view
         )
     
     # Delete user immediately after withdrawal request
