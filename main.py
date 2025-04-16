@@ -3147,11 +3147,11 @@ async def start(interaction: discord.Interaction):
                 demo_welcome_message = (
                     f"# 🚀 Welcome to KashFlow Demo Mode! 🚀\n\n"
                     f"**This is a demonstration of KashFlow's referral system.**\n\n"
-                    f"In this demo, you'll see how the app works with a simulated balance of **{DEMO_BALANCE}** naira "
+                    f"In this demo, you'll see how the app works with a simulated balance of **₦{DEMO_BALANCE}** "
                     f"and **{DEMO_REFERRALS}** referrals.\n\n"
-                    f"• **Welcome Bonus**: {WELCOME_BONUS} naira when you register\n"
-                    f"• **Referral Bonus**: {REFERRAL_BONUS} naira for each person you refer\n"
-                    f"• **Withdrawal Threshold**: {WITHDRAWAL_THRESHOLD} naira minimum balance\n"
+                    f"• **Welcome Bonus**: ₦{WELCOME_BONUS} when you register\n"
+                    f"• **Referral Bonus**: ₦{REFERRAL_BONUS} for each person you refer\n"
+                    f"• **Withdrawal Threshold**: ₦{WITHDRAWAL_THRESHOLD} minimum balance\n"
                     f"• **Referral Requirement**: {MINIMUM_REFERRALS} referrals minimum\n\n"
                     f"Try all the features below, and click 'Exit Demo & Register' when you're ready to create a real account!"
                 )
@@ -3202,10 +3202,10 @@ async def start(interaction: discord.Interaction):
             # Send options message
             await interaction.response.send_message(
                 f"# Welcome to KashFlow! 👋\n\n"
-                f"KashFlow is a referral rewards system where you can earn naira by referring friends.\n\n"
-                f"• Get **{WELCOME_BONUS}** naira welcome bonus when you register\n"
-                f"• Earn **{REFERRAL_BONUS}** naira for each friend you refer\n"
-                f"• Withdraw when you reach **{WITHDRAWAL_THRESHOLD}** naira and **{MINIMUM_REFERRALS}** referrals\n\n"
+                f"KashFlow is a referral rewards system where you can earn ₦ by referring friends.\n\n"
+                f"• Get **₦{WELCOME_BONUS}** welcome bonus when you register\n"
+                f"• Earn **₦{REFERRAL_BONUS}** for each friend you refer\n"
+                f"• Withdraw when you reach **₦{WITHDRAWAL_THRESHOLD}** and **{MINIMUM_REFERRALS}** referrals\n\n"
                 f"You can try a demo of the system first, or register right away with a coupon code.",
                 view=demo_view,
                 ephemeral=False
@@ -3319,7 +3319,7 @@ async def dashboard(interaction: discord.Interaction):
         "**Dashboard Controls**:\n" +
         "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
         "• **Check Balance**: View your current balance and referral count\n" +
-        f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
+        f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & ₦{WITHDRAWAL_THRESHOLD} minimum)\n" +
         "• **Set Bank Information**: Update your bank details for withdrawals",
         view=view,
         ephemeral=False
@@ -3396,7 +3396,7 @@ async def help_command(interaction: discord.Interaction):
     # Generate help message with contact info
     help_message = (
         "# 📚 KashFlow Bot Help\n\n"
-        "**KashFlow** is a referral rewards system where you can earn naira by referring new users.\n\n"
+        "**KashFlow** is a referral rewards system where you can earn ₦ by referring new users.\n\n"
         "## 🤝 How It Works\n"
         f"• Get **₦{WELCOME_BONUS}** welcome bonus when you register\n"
         f"• Earn **₦{REFERRAL_BONUS}** for each person you refer\n"
@@ -3499,13 +3499,13 @@ async def help_command(interaction: discord.Interaction):
             # Send dashboard with the view
             await dashboard_interaction.response.send_message(
                 f"**Your Dashboard**\n\n" +
-                f"Current Balance: **{user.balance}** naira\n" +
+                f"Current Balance: **₦{user.balance}**\n" +
                 f"Referral Count: **{user.referral_count}**\n" +
-                f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **{WITHDRAWAL_THRESHOLD}** naira minimum\n\n" +
+                f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
                 "**Dashboard Controls**:\n" +
                 "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
                 "• **Check Balance**: View your current balance and referral count\n" +
-                f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & {WITHDRAWAL_THRESHOLD} naira minimum)\n" +
+                f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & ₦{WITHDRAWAL_THRESHOLD} minimum)\n" +
                 "• **Set Bank Information**: Update your bank details for withdrawals",
                 view=view,
                 ephemeral=False
