@@ -2217,7 +2217,11 @@ class AIAssistantModal(discord.ui.Modal):
                 return
             
             # Get AI response
-            response = await ai_assistant.get_ai_response(self.user_id, question)
+            try:
+                response = await ai_assistant.get_ai_response(self.user_id, question)
+            except Exception as ai_error:
+                logger.error(f"Error getting AI response: {ai_error}")
+                response = "Sorry, I couldn't generate a response at this time. Please try again later or ask a different question."
             
             # Format the response
             formatted_response = (

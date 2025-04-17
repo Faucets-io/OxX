@@ -3,7 +3,13 @@ import json
 import random
 import logging
 from typing import List, Dict, Optional
-from openai import OpenAI
+
+# Try to import OpenAI, but handle the case if it's not installed
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
