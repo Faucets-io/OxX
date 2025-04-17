@@ -7,6 +7,14 @@
         {
             "role": "assistant",
             "content": "\u2728 **Getting Started**: The easiest way to begin earning is by completing the tutorial and getting your first referral!"
+        },
+        {
+            "role": "user",
+            "content": "Hello"
+        },
+        {
+            "role": "assistant",
+            "content": "\ud83d\udcf1 **Cross-Platform Sharing**: Don't limit yourself to one platform. Share your referral code on WhatsApp, Facebook, Twitter, Instagram, and more!"
         }
     ],
     "12345": [

@@ -1315,13 +1315,7 @@ def create_user_dashboard_view(user_id: int) -> discord.ui.View:
     view.add_item(button_top_ratings)
     
     # AI Assistant button
-    button_ai_assistant = discord.ui.Button(
-        style=discord.ButtonStyle.success,
-        label="💡 AI Assistant",
-        custom_id=f"ai_assistant_{user_id}"
-    )
-    button_ai_assistant.callback = open_ai_assistant_callback
-    view.add_item(button_ai_assistant)
+    # AI Assistant button removed as requested
     
     return view
 
