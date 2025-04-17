@@ -85,7 +85,7 @@ class AIAssistant:
         # Load conversation history from file if it exists
         self.conversation_history = self._load_conversation_history()
 
-    def _load_conversation_history(self) -> Dict[int, List[Dict]]:
+    def _load_conversation_history(self) -> Dict[str, List[Dict]]:
         """Load AI conversation history from file."""
         try:
             with open('ai_conversations.json', 'r') as f:
@@ -100,24 +100,26 @@ class AIAssistant:
 
     def _get_user_history(self, user_id: int) -> List[Dict]:
         """Get conversation history for a specific user."""
-        if str(user_id) not in self.conversation_history:
-            self.conversation_history[str(user_id)] = []
-        return self.conversation_history[str(user_id)]
+        user_id_str = str(user_id)
+        if user_id_str not in self.conversation_history:
+            self.conversation_history[user_id_str] = []
+        return self.conversation_history[user_id_str]
 
     def _update_user_history(self, user_id: int, role: str, content: str) -> None:
         """Add a message to a user's conversation history."""
-        if str(user_id) not in self.conversation_history:
-            self.conversation_history[str(user_id)] = []
+        user_id_str = str(user_id)
+        if user_id_str not in self.conversation_history:
+            self.conversation_history[user_id_str] = []
         
         # Add the new message
-        self.conversation_history[str(user_id)].append({
+        self.conversation_history[user_id_str].append({
             "role": role,
             "content": content
         })
         
         # Keep only the last 10 messages to prevent context from getting too large
-        if len(self.conversation_history[str(user_id)]) > 10:
-            self.conversation_history[str(user_id)] = self.conversation_history[str(user_id)][-10:]
+        if len(self.conversation_history[user_id_str]) > 10:
+            self.conversation_history[user_id_str] = self.conversation_history[user_id_str][-10:]
         
         # Save updated history
         self._save_conversation_history()

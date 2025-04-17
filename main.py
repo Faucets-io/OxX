@@ -15,6 +15,9 @@ from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 
+# Import AI Assistant
+from ai_assistant import ai_assistant
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -1310,6 +1313,15 @@ def create_user_dashboard_view(user_id: int) -> discord.ui.View:
     )
     button_top_ratings.callback = view_top_ratings_callback
     view.add_item(button_top_ratings)
+    
+    # AI Assistant button
+    button_ai_assistant = discord.ui.Button(
+        style=discord.ButtonStyle.success,
+        label="💡 AI Assistant",
+        custom_id=f"ai_assistant_{user_id}"
+    )
+    button_ai_assistant.callback = open_ai_assistant_callback
+    view.add_item(button_ai_assistant)
     
     return view
 
