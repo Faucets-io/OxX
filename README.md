@@ -8,7 +8,6 @@ A Discord bot designed to enhance community engagement through a dynamic referra
 - **Coupon Management**: Admin-controlled coupon code generation
 - **Withdrawal System**: Users can withdraw funds after 4 successful referrals
 - **Two-Tier Admin System**: Primary admin with exclusive coupon generation rights
-- **AI Assistant**: Intelligent AI helper to guide users on maximizing their earnings
 
 ## 🔄 24/7 Operation on Replit
 
@@ -41,7 +40,6 @@ The bot includes a robust keep-alive system with the following features:
    PRIMARY_ADMIN_ID=your_discord_user_id_here
    ADMIN_IDS=comma,separated,discord,ids
    SESSION_SECRET=random_string_here
-   OPENAI_API_KEY=your_openai_api_key_here
    ```
 
 2. **Primary Admin ID**: This must be your Discord user ID (enable Developer Mode in Discord settings → right-click your username → Copy ID)
@@ -82,15 +80,4 @@ The withdrawal system has been configured with these rules:
 - Check your current balance and referral count
 - Withdraw your balance when eligible (4 referrals & 1000 naira minimum)
 - Set your bank information for withdrawals
-- Access the AI Assistant for personalized growth strategies
 - Connect with other users in the Group Chat
-
-## 🤖 AI Assistant
-The bot includes an intelligent AI assistant that helps users maximize their earnings:
-
-- Provides personalized advice on referral strategies
-- Offers tips for consistent daily/weekly income
-- Suggests effective ways to share referral codes
-- Guides users on withdrawal timing and banking setup
-
-To enable enhanced AI capabilities, obtain an OpenAI API key and add it to your `.env` file. Without an API key, the assistant will still function using predefined responses.
