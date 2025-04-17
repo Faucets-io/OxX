@@ -64,6 +64,14 @@ ACTIVE_USER_DAYS = 30  # Number of days to consider a user active
 # Bot status control
 BOT_ENABLED_FOR_USERS = True  # Bot status flag
 
+# Customizable greeting messages
+GREETING_MESSAGES = {
+    "welcome_back": "**Welcome back {username}!**",
+    "first_time": "# 🎉 Welcome to KashFlow, {username}! 🎉",
+    "registration_success": "**Registration successful!** Welcome to KashFlow, {username}!",
+    "demo_welcome": "# 🚀 Welcome to KashFlow Demo Mode! 🚀"
+}
+
 # Configuration management functions
 def load_config() -> Dict:
     """Load configuration from config.json file."""
