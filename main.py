@@ -16,7 +16,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 # Import AI Assistant
-from ai_assistant import ai_assistant
+# AI assistant import removed
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -2177,142 +2177,7 @@ class ChatMessageModal(discord.ui.Modal):
             logger.error(f"Error sending chat message: {e}")
             await interaction.followup.send(f"An error occurred: {str(e)}", ephemeral=True)
 
-class AIAssistantModal(discord.ui.Modal):
-    def __init__(self, user_id: int, *args, **kwargs):
-        super().__init__(title="Ask AI Assistant", *args, **kwargs)
-        self.user_id = user_id
-        
-        # Question for AI
-        self.add_item(
-            discord.ui.TextInput(
-                label="Your Question",
-                placeholder="How can I grow my daily income with KashFlow?",
-                custom_id="ai_question",
-                style=discord.TextStyle.paragraph,
-                required=True,
-                max_length=500
-            )
-        )
-    
-    async def on_submit(self, interaction: discord.Interaction):
-        # Verify it's the right user
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("You can only ask questions as yourself.", ephemeral=True)
-            return
-        
-        await interaction.response.defer(thinking=True)
-        
-        try:
-            # Get the question content
-            question = self.children[0].value.strip()
-            
-            if not question:
-                await interaction.followup.send("Question cannot be empty.", ephemeral=True)
-                return
-            
-            # Get AI response
-            try:
-                response = await ai_assistant.get_ai_response(self.user_id, question)
-            except Exception as ai_error:
-                logger.error(f"Error getting AI response: {ai_error}")
-                response = "Sorry, I couldn't generate a response at this time. Please try again later or ask a different question."
-            
-            # Format the response
-            formatted_response = (
-                "# 💡 AI Assistant\n\n"
-                f"**Your Question:** {question}\n\n"
-                f"**AI Response:**\n{response}\n\n"
-                "_Note: The AI provides general advice. Your specific results may vary._"
-            )
-            
-            # Create view with Ask Again button
-            view = discord.ui.View(timeout=None)
-            
-            # Add Ask Again button
-            ask_again_button = discord.ui.Button(
-                style=discord.ButtonStyle.primary,
-                label="Ask Another Question",
-                custom_id=f"ai_assistant_again_{self.user_id}"
-            )
-            
-            async def ask_again_callback(ask_interaction: discord.Interaction):
-                try:
-                    # Verify user
-                    if ask_interaction.user.id != self.user_id:
-                        await ask_interaction.response.send_message(
-                            "You can only ask questions from your own dashboard.", 
-                            ephemeral=True
-                        )
-                        return
-                    
-                    # Show modal for new question
-                    modal = AIAssistantModal(self.user_id)
-                    await ask_interaction.response.send_modal(modal)
-                except Exception as e:
-                    logger.error(f"Error in ask_again_callback: {e}")
-                    await ask_interaction.response.send_message(
-                        "Something went wrong. Please try again.", 
-                        ephemeral=True
-                    )
-            
-            ask_again_button.callback = ask_again_callback
-            view.add_item(ask_again_button)
-            
-            # Add Back to Dashboard button
-            dashboard_button = discord.ui.Button(
-                style=discord.ButtonStyle.secondary,
-                label="Back to Dashboard",
-                custom_id=f"ai_dashboard_{self.user_id}"
-            )
-            
-            async def dashboard_callback(dashboard_interaction: discord.Interaction):
-                try:
-                    # Verify user
-                    if dashboard_interaction.user.id != self.user_id:
-                        await dashboard_interaction.response.send_message(
-                            "You can only access your own dashboard.", 
-                            ephemeral=True
-                        )
-                        return
-                    
-                    # Get user info
-                    user = get_user(dashboard_interaction.user.id)
-                    if user:
-                        # Send dashboard with updated view
-                        await dashboard_interaction.response.send_message(
-                            f"**Your Dashboard**\n\n" +
-                            f"Current Balance: **₦{user.balance}**\n" +
-                            f"Referral Count: **{user.referral_count}**\n" +
-                            f"Withdrawal Requirements: **{MINIMUM_REFERRALS}** referrals & **₦{WITHDRAWAL_THRESHOLD}** minimum\n\n" +
-                            "**Dashboard Controls**:\n" +
-                            "• **Copy ID to Refer**: Get your referral ID to share with others\n" +
-                            "• **Check Balance**: View your current balance and referral count\n" +
-                            f"• **Withdraw**: Request withdrawal when eligible ({MINIMUM_REFERRALS} referrals & ₦{WITHDRAWAL_THRESHOLD} minimum)\n" +
-                            "• **Set Bank Information**: Update your bank details for withdrawals",
-                            view=create_user_dashboard_view(dashboard_interaction.user.id),
-                            ephemeral=False
-                        )
-                    else:
-                        await dashboard_interaction.response.send_message(
-                            "You need to register first. Use /start to register with a coupon code.",
-                            ephemeral=True
-                        )
-                except Exception as e:
-                    logger.error(f"Error in ai_dashboard_callback: {e}")
-                    await dashboard_interaction.response.send_message(
-                        "Something went wrong. Please try again.", 
-                        ephemeral=True
-                    )
-            
-            dashboard_button.callback = dashboard_callback
-            view.add_item(dashboard_button)
-            
-            # Send the response
-            await interaction.followup.send(formatted_response, view=view, ephemeral=False)
-            
-        except Exception as e:
-            logger.error(f"Error in AIAssistantModal.on_submit: {e}")
-            await interaction.followup.send("Failed to get AI response. Please try again.", ephemeral=True)
+# AI Assistant Modal removed as requested
 
 class ConfigSettingsModal(discord.ui.Modal):
     def __init__(self, setting_key: str, current_value, *args, **kwargs):
@@ -2593,39 +2458,7 @@ async def open_chat_callback(interaction: discord.Interaction):
                 except:
                     pass
                     
-async def open_ai_assistant_callback(interaction: discord.Interaction):
-    """Handle opening the AI assistant."""
-    try:
-        # Extract user ID from custom_id
-        custom_id = interaction.data["custom_id"]
-        user_id = int(custom_id.split("_")[-1])
-        
-        # Ensure the user is opening their own AI assistant
-        if interaction.user.id != user_id:
-            await interaction.response.send_message("You can only access AI assistant from your own dashboard.", ephemeral=True)
-            return
-            
-        # Verify the user exists
-        user = get_user(interaction.user.id)
-        if not user:
-            await interaction.response.send_message("You must be registered to use the AI assistant.", ephemeral=True)
-            return
-            
-        # Show AI assistant modal
-        modal = AIAssistantModal(user_id)
-        await interaction.response.send_modal(modal)
-        
-    except Exception as e:
-        logger.error(f"Error in open_ai_assistant_callback: {e}")
-        if not interaction.response.is_done():
-            try:
-                await interaction.response.send_message("Something went wrong. Please try again.", ephemeral=True)
-            except:
-                # If all else fails, try to send a followup message
-                try:
-                    await interaction.followup.send("Something went wrong. Please try again.", ephemeral=True)
-                except:
-                    pass
+# AI Assistant callback removed as requested
 
 async def show_group_chat(interaction: discord.Interaction):
     """Display the group chat and its controls."""
