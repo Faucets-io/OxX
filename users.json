@@ -16,22 +16,6 @@
         "tutorial_completed": true,
         "tutorial_last_interaction": "2025-04-16T22:29:44.341205"
     },
-    "1361453652161724628": {
-        "id": 1361453652161724628,
-        "username": "kashflow0143",
-        "balance": 1000,
-        "referred_by": null,
-        "bank_name": "",
-        "bank_account_number": "",
-        "bank_account_name": "",
-        "referral_count": 4,
-        "created_at": "2025-04-15T23:58:47.330330",
-        "rating_comment": "",
-        "rating_approved": false,
-        "tutorial_step": 0,
-        "tutorial_completed": false,
-        "tutorial_last_interaction": null
-    },
     "1339403990504570940": {
         "id": 1339403990504570940,
         "username": "quadcod",
@@ -44,8 +28,24 @@
         "created_at": "2025-04-16T14:17:18.472928",
         "rating_comment": "",
         "rating_approved": false,
-        "tutorial_step": 0,
+        "tutorial_step": 5,
         "tutorial_completed": false,
-        "tutorial_last_interaction": null
+        "tutorial_last_interaction": "2025-04-16T23:35:20.341873"
+    },
+    "1361453652161724628": {
+        "id": 1361453652161724628,
+        "username": "kashflow0143",
+        "balance": 200,
+        "referred_by": null,
+        "bank_name": "",
+        "bank_account_number": "",
+        "bank_account_name": "",
+        "referral_count": 0,
+        "created_at": "2025-04-16T23:31:30.642864",
+        "rating_comment": "",
+        "rating_approved": false,
+        "tutorial_step": 5,
+        "tutorial_completed": true,
+        "tutorial_last_interaction": "2025-04-16T23:36:01.788707"
     }
 }

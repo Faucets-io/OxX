@@ -1,1 +1,85 @@
-{}
+{
+    "messages": [
+        {
+            "id": "48aa0bfb-1a52-497a-8290-1aa80e857011",
+            "user_id": 1145166528623431681,
+            "username": "nerochaze",
+            "content": "Ho",
+            "type": "text",
+            "timestamp": "2025-04-16T23:16:32.671915",
+            "attachment_url": null
+        },
+        {
+            "id": "a0fb6fa4-6457-4128-9f7d-5b4671cfe6d3",
+            "user_id": 1145166528623431681,
+            "username": "nerochaze",
+            "content": "Hello guys",
+            "type": "text",
+            "timestamp": "2025-04-16T23:17:55.617044",
+            "attachment_url": null
+        },
+        {
+            "id": "e2e9f9b7-d5ab-4f52-a8eb-b2d182219cd3",
+            "user_id": 1361453652161724628,
+            "username": "kashflow0143",
+            "content": "What\u2019s up",
+            "type": "text",
+            "timestamp": "2025-04-16T23:24:55.728157",
+            "attachment_url": null
+        },
+        {
+            "id": "82d0d055-0146-4dac-a5e3-587b32526fd3",
+            "user_id": 1361453652161724628,
+            "username": "kashflow0143",
+            "content": "My referral ID: **1361453652161724628**\nUse my ID to earn \u20a6200 bonus when you register!",
+            "type": "referral",
+            "timestamp": "2025-04-16T23:25:27.395943",
+            "attachment_url": null
+        },
+        {
+            "id": "639a0266-3245-4dca-8d95-28cf06f02260",
+            "user_id": 1361453652161724628,
+            "username": "kashflow0143",
+            "content": "\ud83e\udd73\ud83e\udd73",
+            "type": "text",
+            "timestamp": "2025-04-16T23:32:55.573923",
+            "attachment_url": null
+        },
+        {
+            "id": "7b8a8359-ccb3-420a-ad8e-10b6309a4fe7",
+            "user_id": 1339403990504570940,
+            "username": "quadcod",
+            "content": "Hello guys",
+            "type": "text",
+            "timestamp": "2025-04-16T23:37:40.214477",
+            "attachment_url": null
+        },
+        {
+            "id": "af96177c-7b09-4333-85d7-685b5a2524a9",
+            "user_id": 1145166528623431681,
+            "username": "nerochaze",
+            "content": "Sup\ud83d\ude0e",
+            "type": "text",
+            "timestamp": "2025-04-16T23:38:44.474447",
+            "attachment_url": null
+        },
+        {
+            "id": "85dba7b5-114b-4c48-ac99-ba4979fba5f3",
+            "user_id": 1339403990504570940,
+            "username": "quadcod",
+            "content": "Omo una dey chop Money for here oo",
+            "type": "text",
+            "timestamp": "2025-04-16T23:40:33.403605",
+            "attachment_url": null
+        },
+        {
+            "id": "60f01e7c-0ab7-4fa6-acab-6d02166e62a5",
+            "user_id": 1145166528623431681,
+            "username": "nerochaze",
+            "content": "Lowkey my boss",
+            "type": "text",
+            "timestamp": "2025-04-16T23:40:57.478913",
+            "attachment_url": null
+        }
+    ]
+}
