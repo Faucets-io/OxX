@@ -66,10 +66,10 @@ BOT_ENABLED_FOR_USERS = True  # Bot status flag
 
 # Customizable greeting messages
 GREETING_MESSAGES = {
-    "welcome_back": "**Welcome back {username}!**",
-    "first_time": "# 🎉 Welcome to KashFlow, {username}! 🎉",
-    "registration_success": "**Registration successful!** Welcome to KashFlow, {username}!",
-    "demo_welcome": "# 🚀 Welcome to KashFlow Demo Mode! 🚀"
+    "welcome_back": "# Welcome Back! 👋\n**Hello {username}, welcome back to KashFlow!**",
+    "first_time": "# Welcome to KashFlow! 🎉\n**Hello {username}, we're excited to have you join us!**",
+    "registration_success": "# Registration Complete! ✅\n**Congratulations {username}, your KashFlow account is ready!**",
+    "demo_welcome": "# KashFlow Demo Mode 🚀\n**Welcome to the KashFlow demo experience!**"
 }
 
 # Configuration management functions
